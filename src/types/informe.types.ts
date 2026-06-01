@@ -6,6 +6,13 @@ export interface AccionInforme {
   descripcion: string;
 }
 
+export interface PlazoInforme {
+  fecha_inicio:     string;   // "2026-05-29"
+  fecha_fin:        string;   // "2026-06-05"
+  duracion_dias:    number;
+  descripcion_plazo: string;  // "plazo corto"
+}
+
 export interface IniciativaInforme {
   id: number;
   titulo: string;
@@ -14,6 +21,7 @@ export interface IniciativaInforme {
   categoria: Categoria;
   importancia: number;
   gobernabilidad: number;
+  plazo: PlazoInforme | null;  // null para cuadrante 4
   acciones: AccionInforme[];
 }
 

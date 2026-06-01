@@ -1,4 +1,5 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { gsap } from 'gsap';
 import { useGSAP } from '@gsap/react';
 import {
@@ -7,12 +8,15 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { ScatterShapeProps } from 'recharts';
-import { RefreshCw, Loader2, TrendingUp, Info } from 'lucide-react';
+import { RefreshCw, Loader2, TrendingUp, Info, LayoutGrid } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEmpresaStore } from '@/store/empresaStore';
-import { useMatriz } from '@/hooks/useMatriz';
+import { useMatrizConInforme } from '@/hooks/useMatrizConInforme';
+import { IniciativaDetailPanel } from '@/components/matriz/IniciativaDetailPanel';
+import { CalendarioPlanAccion } from '@/components/matriz/CalendarioPlanAccion';
 import { CUADRANTES } from '@/lib/utils';
 import type { Iniciativa, Cuadrante } from '@/types/iniciativa.types';
+import type { IniciativaInforme } from '@/types/informe.types';
 
 type ChartPoint = Iniciativa & { x: number; y: number };
 
@@ -23,14 +27,9 @@ function QuadrantPill({ qKey, count }: { qKey: Cuadrante; count: number }) {
     <div
       className="card-item"
       style={{
-        background: q.bg,
-        border: `1px solid ${q.border}`,
-        borderRadius: 10,
-        padding: '8px 14px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        flexShrink: 0,
+        background: q.bg, border: `1px solid ${q.border}`,
+        borderRadius: 10, padding: '8px 14px',
+        display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
       }}
     >
       <span style={{ fontSize: '1.25rem', fontWeight: 700, color: q.color, lineHeight: 1 }}>
@@ -45,16 +44,45 @@ function QuadrantPill({ qKey, count }: { qKey: Cuadrante; count: number }) {
 
 /* ─── Page ─── */
 export default function MatrizPage() {
-  const containerRef  = useRef<HTMLDivElement>(null);
-  const empresaActiva = useEmpresaStore((s) => s.empresaActiva);
-  const { matrizData, loading, error, fetchMatriz } = useMatriz(empresaActiva?.id ?? null);
+  const navigate       = useNavigate();
+  const containerRef   = useRef<HTMLDivElement>(null);
+  const empresaActiva  = useEmpresaStore((s) => s.empresaActiva);
 
-  const asintota = matrizData?.asintotas ?? { importancia: 3, gobernabilidad: 3 };
+  const {
+    matrizData,
+    informe,
+    loadingMatriz,
+    loadingInforme,
+    generating,
+    error,
+    regenerar,
+  } = useMatrizConInforme(empresaActiva?.id ?? null);
 
+  /* Selected dot → detail panel */
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+
+  /* Map informe.iniciativas by id for O(1) lookup */
+  const informeMap = useMemo(() => {
+    const map = new Map<number, IniciativaInforme>();
+    informe?.contenido.iniciativas.forEach((ini) => map.set(ini.id, ini));
+    return map;
+  }, [informe]);
+
+  const selectedIniciativa: IniciativaInforme | null =
+    selectedId != null ? (informeMap.get(selectedId) ?? null) : null;
+
+  /* Clear selection when informe resets (e.g. regenerar) */
+  useEffect(() => {
+    if (selectedId !== null && informe === null) setSelectedId(null);
+  }, [informe, selectedId]);
+
+  /* Chart data */
   const chartData = useMemo<ChartPoint[]>(
     () => (matrizData?.iniciativas ?? []).map((ini) => ({ ...ini, x: ini.gobernabilidad, y: ini.importancia })),
     [matrizData],
   );
+
+  const asintota = matrizData?.asintotas ?? { importancia: 3, gobernabilidad: 3 };
 
   const counts = useMemo(() => {
     const c: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
@@ -62,16 +90,32 @@ export default function MatrizPage() {
     return c;
   }, [chartData]);
 
+  /* Derived booleans */
+  const isLoading        = loadingMatriz || loadingInforme || generating;
+  const hasFewData       = !loadingMatriz && matrizData !== null && chartData.length < 2;
+  const hasData          = !isLoading && !error && chartData.length >= 2;
+  const showAnalysis     = hasData && !!informe;
+
+  const loadingMessage =
+    generating     ? 'Generando tu matriz IGO…'   :
+    loadingInforme ? 'Cargando análisis…'          :
+    loadingMatriz  ? 'Cargando matriz…'            : null;
+
+  /* Handle regenerar + clear selection */
+  const handleRegenerar = () => {
+    setSelectedId(null);
+    void regenerar();
+  };
+
+  /* GSAP entrance */
   useGSAP(
     () => {
       gsap.fromTo('.mz-header',  { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' });
       gsap.fromTo('.card-item',  { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, stagger: 0.06, ease: 'power2.out', delay: 0.12 });
       gsap.fromTo('.mz-chart',   { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out', delay: 0.22 });
     },
-    { scope: containerRef, dependencies: [!!matrizData] },
+    { scope: containerRef, dependencies: [hasData] },
   );
-
-  const hasData = !loading && !error && chartData.length > 0;
 
   return (
     <div ref={containerRef} style={{ paddingBottom: '2rem' }}>
@@ -81,10 +125,17 @@ export default function MatrizPage() {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: '0.2rem' }}>
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: '#0A0A0A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div style={{
+                width: 34, height: 34, borderRadius: 9, background: '#0A0A0A',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
                 <TrendingUp size={16} color="white" strokeWidth={2.5} />
               </div>
-              <h1 style={{ fontFamily: "'Instrument Serif', Georgia, serif", fontSize: '1.75rem', fontWeight: 400, fontStyle: 'italic', color: '#0A0A0A', letterSpacing: '-0.01em', margin: 0 }}>
+              <h1 style={{
+                fontFamily: "'Instrument Serif', Georgia, serif",
+                fontSize: '1.75rem', fontWeight: 400, fontStyle: 'italic',
+                color: '#0A0A0A', letterSpacing: '-0.01em', margin: 0,
+              }}>
                 Matriz IGO
               </h1>
             </div>
@@ -94,26 +145,119 @@ export default function MatrizPage() {
               </p>
             )}
           </div>
-          <button
-            onClick={() => void fetchMatriz()}
-            disabled={loading}
-            title="Actualizar"
-            style={{
-              width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-              background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#6B7280', transition: 'background 0.15s',
-            }}
-          >
-            <RefreshCw size={14} strokeWidth={2} className={cn(loading && 'animate-spin')} />
-          </button>
+
+          {/* Regenerar button — discrete, only when there's data */}
+          {(hasData || showAnalysis) && (
+            <button
+              onClick={handleRegenerar}
+              disabled={isLoading}
+              title="Regenerar análisis"
+              style={{
+                width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#6B7280', transition: 'background 0.15s',
+              }}
+            >
+              <RefreshCw
+                size={14}
+                strokeWidth={2}
+                className={cn((loadingMatriz || generating) && 'animate-spin')}
+              />
+            </button>
+          )}
         </div>
       </div>
 
       <div style={{ maxWidth: 700, margin: '0 auto', padding: '1.25rem 1.25rem 0' }}>
 
-        {/* ── Quadrant counts ── */}
+        {/* ── Loading ── */}
+        {isLoading && (
+          <div style={{
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            minHeight: 300, gap: 14,
+          }}>
+            <Loader2 size={28} strokeWidth={1.5} color="#0A0A0A" className="animate-spin" />
+            <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0A0A0A', margin: 0, letterSpacing: '-0.01em' }}>
+              {loadingMessage}
+            </p>
+            {generating && (
+              <p style={{ fontSize: '0.8125rem', color: '#9CA3AF', margin: 0, maxWidth: 260, textAlign: 'center', lineHeight: 1.5 }}>
+                Estamos analizando tus iniciativas con IA.<br />Esto puede tomar hasta 30 segundos.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* ── Error ── */}
+        {error && !isLoading && (
+          <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+            <p style={{ color: '#DC2626', fontSize: '0.875rem', marginBottom: 12 }}>{error}</p>
+            <button
+              onClick={handleRegenerar}
+              style={{
+                background: '#0A0A0A', color: '#FFFFFF', border: 'none',
+                borderRadius: 8, padding: '8px 16px',
+                cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600,
+              }}
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
+
+        {/* ── < 2 initiatives — friendly empty state ── */}
+        {hasFewData && !isLoading && !error && (
+          <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: 14,
+              background: '#F8F8F8', border: '1px solid rgba(0,0,0,0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 1rem',
+            }}>
+              <TrendingUp size={24} color="#9CA3AF" />
+            </div>
+            <p style={{ fontSize: '1rem', fontWeight: 700, color: '#0A0A0A', marginBottom: 6, letterSpacing: '-0.01em' }}>
+              Necesitas al menos 2 iniciativas
+            </p>
+            <p style={{ fontSize: '0.875rem', color: '#9CA3AF', marginBottom: '1.5rem', lineHeight: 1.5 }}>
+              Agrega al menos 2 iniciativas para generar<br />tu Matriz IGO con análisis estratégico
+            </p>
+            <button
+              onClick={() => navigate('/iniciativas/nueva')}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 7,
+                background: '#0A0A0A', color: '#FFFFFF', border: 'none',
+                borderRadius: 10, padding: '10px 20px',
+                cursor: 'pointer', fontSize: '0.9375rem', fontWeight: 600,
+              }}
+            >
+              <LayoutGrid size={15} strokeWidth={2.5} />
+              Agregar iniciativa
+            </button>
+          </div>
+        )}
+
+        {/* ── No empresa selected ── */}
+        {!empresaActiva && !isLoading && (
+          <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
+            <p style={{ fontSize: '0.9375rem', color: '#9CA3AF' }}>
+              Selecciona una empresa para ver la matriz
+            </p>
+          </div>
+        )}
+
+        {/* ── Calendar plan de acción (above the chart) ── */}
+        {showAnalysis && (
+          <CalendarioPlanAccion
+            informe={informe!}
+            onSelectIniciativa={setSelectedId}
+          />
+        )}
+
+        {/* ── Quadrant count pills ── */}
         {hasData && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', marginBottom: '1.25rem' }}>
             {([1, 2, 3, 4] as Cuadrante[]).map((k) => (
@@ -122,108 +266,61 @@ export default function MatrizPage() {
           </div>
         )}
 
-        {/* ── Loading ── */}
-        {loading && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300, gap: 10, color: '#9CA3AF' }}>
-            <Loader2 size={18} strokeWidth={2} className="animate-spin" />
-            <span style={{ fontSize: '0.875rem' }}>Cargando matriz...</span>
-          </div>
-        )}
-
-        {/* ── Error ── */}
-        {error && !loading && (
-          <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-            <p style={{ color: '#DC2626', fontSize: '0.875rem', marginBottom: 12 }}>{error}</p>
-            <button
-              onClick={() => void fetchMatriz()}
-              style={{ background: '#0A0A0A', color: '#FFFFFF', border: 'none', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}
-            >
-              Reintentar
-            </button>
-          </div>
-        )}
-
-        {/* ── Empty state ── */}
-        {!loading && !error && chartData.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
-            <div style={{ width: 56, height: 56, borderRadius: 14, background: '#F8F8F8', border: '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
-              <TrendingUp size={24} color="#9CA3AF" />
-            </div>
-            <p style={{ fontSize: '1rem', fontWeight: 600, color: '#0A0A0A', marginBottom: 4 }}>Todavía sin iniciativas</p>
-            <p style={{ fontSize: '0.875rem', color: '#9CA3AF' }}>Agrega iniciativas en la sección Tareas para ver la matriz</p>
-          </div>
-        )}
-
         {/* ── Scatter chart ── */}
         {hasData && (
           <div
             className="mz-chart"
-            style={{ border: '1px solid rgba(0,0,0,0.07)', borderRadius: 16, background: '#FAFAFA', overflow: 'hidden' }}
+            style={{
+              border: '1px solid rgba(0,0,0,0.07)',
+              borderRadius: 16, background: '#FAFAFA', overflow: 'hidden',
+            }}
           >
             <ResponsiveContainer width="100%" aspect={1.05}>
               <ScatterChart margin={{ top: 16, right: 20, bottom: 30, left: 10 }}>
                 <CartesianGrid strokeDasharray="2 5" stroke="rgba(0,0,0,0.05)" />
 
                 <XAxis
-                  type="number"
-                  dataKey="x"
-                  domain={[0.5, 5.5]}
-                  ticks={[1, 2, 3, 4, 5]}
+                  type="number" dataKey="x" domain={[0.5, 5.5]} ticks={[1, 2, 3, 4, 5]}
                   tick={{ fontSize: 11, fill: '#9CA3AF' }}
-                  axisLine={{ stroke: 'rgba(0,0,0,0.08)' }}
-                  tickLine={false}
+                  axisLine={{ stroke: 'rgba(0,0,0,0.08)' }} tickLine={false}
                   label={{
-                    value: 'Gobernabilidad →',
-                    position: 'insideBottom',
-                    offset: -12,
-                    style: { fontSize: 10, fill: '#9CA3AF', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' },
+                    value: 'Gobernabilidad →', position: 'insideBottom', offset: -12,
+                    style: { fontSize: 10, fill: '#9CA3AF', fontWeight: 700, letterSpacing: '0.06em' },
                   }}
                 />
-
                 <YAxis
-                  type="number"
-                  dataKey="y"
-                  domain={[0.5, 5.5]}
-                  ticks={[1, 2, 3, 4, 5]}
+                  type="number" dataKey="y" domain={[0.5, 5.5]} ticks={[1, 2, 3, 4, 5]}
                   tick={{ fontSize: 11, fill: '#9CA3AF' }}
-                  axisLine={{ stroke: 'rgba(0,0,0,0.08)' }}
-                  tickLine={false}
+                  axisLine={{ stroke: 'rgba(0,0,0,0.08)' }} tickLine={false}
                   label={{
-                    value: '↑ Importancia',
-                    angle: -90,
-                    position: 'insideLeft',
-                    offset: 14,
-                    style: { fontSize: 10, fill: '#9CA3AF', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' },
+                    value: '↑ Importancia', angle: -90, position: 'insideLeft', offset: 14,
+                    style: { fontSize: 10, fill: '#9CA3AF', fontWeight: 700, letterSpacing: '0.06em' },
                   }}
                 />
 
                 {/* Quadrant background areas */}
-                <ReferenceArea
-                  x1={asintota.gobernabilidad} x2={5.5} y1={asintota.importancia} y2={5.5}
+                <ReferenceArea x1={asintota.gobernabilidad} x2={5.5} y1={asintota.importancia} y2={5.5}
                   fill="rgba(22,163,74,0.07)"
                   label={{ value: '¡Hacer ya!', position: 'insideTopRight', fill: '#16A34A', fontSize: 10, fontWeight: 700 }}
                 />
-                <ReferenceArea
-                  x1={0.5} x2={asintota.gobernabilidad} y1={asintota.importancia} y2={5.5}
+                <ReferenceArea x1={0.5} x2={asintota.gobernabilidad} y1={asintota.importancia} y2={5.5}
                   fill="rgba(37,99,235,0.06)"
                   label={{ value: 'Estratégico', position: 'insideTopLeft', fill: '#2563EB', fontSize: 10, fontWeight: 700 }}
                 />
-                <ReferenceArea
-                  x1={asintota.gobernabilidad} x2={5.5} y1={0.5} y2={asintota.importancia}
+                <ReferenceArea x1={asintota.gobernabilidad} x2={5.5} y1={0.5} y2={asintota.importancia}
                   fill="rgba(217,119,6,0.06)"
                   label={{ value: 'Rutina', position: 'insideBottomRight', fill: '#D97706', fontSize: 10, fontWeight: 700 }}
                 />
-                <ReferenceArea
-                  x1={0.5} x2={asintota.gobernabilidad} y1={0.5} y2={asintota.importancia}
+                <ReferenceArea x1={0.5} x2={asintota.gobernabilidad} y1={0.5} y2={asintota.importancia}
                   fill="rgba(107,114,128,0.05)"
                   label={{ value: 'Descartar', position: 'insideBottomLeft', fill: '#9CA3AF', fontSize: 10, fontWeight: 700 }}
                 />
 
                 {/* Asíntota divider lines */}
-                <ReferenceLine x={asintota.gobernabilidad} stroke="rgba(0,0,0,0.2)"  strokeDasharray="4 3" strokeWidth={1.5} />
-                <ReferenceLine y={asintota.importancia}   stroke="rgba(0,0,0,0.2)"  strokeDasharray="4 3" strokeWidth={1.5} />
+                <ReferenceLine x={asintota.gobernabilidad} stroke="rgba(0,0,0,0.2)" strokeDasharray="4 3" strokeWidth={1.5} />
+                <ReferenceLine y={asintota.importancia}   stroke="rgba(0,0,0,0.2)" strokeDasharray="4 3" strokeWidth={1.5} />
 
-                {/* Data dots */}
+                {/* Data dots — clickable */}
                 <Scatter
                   data={chartData}
                   shape={(p: ScatterShapeProps) => {
@@ -231,23 +328,38 @@ export default function MatrizPage() {
                     const cy  = p.cy as number;
                     const dot = p.payload as ChartPoint;
                     if (typeof cx !== 'number' || typeof cy !== 'number' || !dot) return <g />;
-                    const q = CUADRANTES[dot.cuadrante as Cuadrante];
+
+                    const q          = CUADRANTES[dot.cuadrante as Cuadrante];
+                    const isSelected = selectedId === dot.id;
+
                     return (
-                      <g key={dot.id}>
+                      <g
+                        key={dot.id}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => setSelectedId(isSelected ? null : dot.id)}
+                        onTouchEnd={(e) => { e.preventDefault(); setSelectedId(isSelected ? null : dot.id); }}
+                      >
+                        {/* Tap target — transparent, larger hit area */}
+                        <circle cx={cx} cy={cy} r={22} fill="transparent" />
+
+                        {/* Selection ring */}
+                        {isSelected && <circle cx={cx} cy={cy} r={14} fill={q.color} opacity={0.18} />}
+                        {isSelected && <circle cx={cx} cy={cy} r={12} fill="none" stroke={q.color} strokeWidth={2} />}
+
                         {/* Glow halo */}
-                        <circle cx={cx} cy={cy} r={16} fill={q.color} opacity={0.09} />
+                        <circle cx={cx} cy={cy} r={14} fill={q.color} opacity={isSelected ? 0 : 0.09} />
                         {/* Main dot */}
                         <circle cx={cx} cy={cy} r={7} fill={q.color} />
-                        {/* White border ring */}
+                        {/* White ring */}
                         <circle cx={cx} cy={cy} r={7} fill="none" stroke="rgba(255,255,255,0.95)" strokeWidth={2} />
                       </g>
                     );
                   }}
                 />
 
-                {/* Tooltip */}
+                {/* Hover tooltip */}
                 <RTooltip
-                  cursor={{ strokeDasharray: '3 3' }}
+                  cursor={false}
                   content={({ active, payload }) => {
                     if (!active || !payload?.length) return null;
                     const d = (payload[0] as unknown as { payload: ChartPoint }).payload;
@@ -273,6 +385,11 @@ export default function MatrizPage() {
                           <span>I:&nbsp;<strong style={{ color: '#0A0A0A' }}>{d.importancia}/5</strong></span>
                           <span>G:&nbsp;<strong style={{ color: '#0A0A0A' }}>{d.gobernabilidad}/5</strong></span>
                         </div>
+                        {informe && (
+                          <p style={{ fontSize: '0.6875rem', color: '#9CA3AF', margin: '6px 0 0' }}>
+                            Toca para ver el plan de acción
+                          </p>
+                        )}
                       </div>
                     );
                   }}
@@ -301,6 +418,33 @@ export default function MatrizPage() {
             </div>
           </div>
         )}
+
+        {/* ── Generating hint (when informe isn't ready yet but chart is) ── */}
+        {hasData && !informe && !isLoading && (
+          <div style={{
+            marginTop: '1rem',
+            border: '1px solid rgba(0,0,0,0.07)',
+            borderRadius: 12, background: '#FAFAFA',
+            padding: '0.875rem 1rem',
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            <Info size={14} color="#9CA3AF" />
+            <p style={{ fontSize: '0.8125rem', color: '#9CA3AF', margin: 0 }}>
+              Toca el botón ↻ para generar el análisis estratégico de cada iniciativa.
+            </p>
+          </div>
+        )}
+
+        {/* ── Initiative detail panel ── */}
+        {showAnalysis && (
+          <div style={{ marginTop: '1rem' }}>
+            <IniciativaDetailPanel
+              iniciativa={selectedIniciativa}
+              onClose={() => setSelectedId(null)}
+            />
+          </div>
+        )}
+
       </div>
     </div>
   );
