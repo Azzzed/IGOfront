@@ -8,15 +8,127 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { ScatterShapeProps } from 'recharts';
-import { RefreshCw, Loader2, TrendingUp, Info, LayoutGrid } from 'lucide-react';
+import { RefreshCw, Loader2, TrendingUp, Info, LayoutGrid, Bell, X as XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEmpresaStore } from '@/store/empresaStore';
 import { useMatrizConInforme } from '@/hooks/useMatrizConInforme';
 import { IniciativaDetailPanel } from '@/components/matriz/IniciativaDetailPanel';
 import { CalendarioPlanAccion } from '@/components/matriz/CalendarioPlanAccion';
 import { CUADRANTES } from '@/lib/utils';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import type { Iniciativa, Cuadrante } from '@/types/iniciativa.types';
 import type { IniciativaInforme } from '@/types/informe.types';
+
+/* ─── Push onboarding card (shown once after first informe) ─── */
+
+const ONBOARDING_KEY = 'push_onboarding_visto';
+
+function PushOnboardingCard() {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const { estado, activar } = usePushNotifications();
+  const [visible, setVisible] = useState(
+    () => localStorage.getItem(ONBOARDING_KEY) === null && estado !== 'no-soportado',
+  );
+
+  /* Dismiss and mark as seen */
+  const dismiss = (doActivate = false) => {
+    localStorage.setItem(ONBOARDING_KEY, '1');
+    setVisible(false);
+    if (doActivate) void activar();
+  };
+
+  /* GSAP entrance */
+  useGSAP(() => {
+    if (!visible || !cardRef.current) return;
+    gsap.fromTo(cardRef.current,
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, duration: 0.55, ease: 'power2.out', delay: 0.3 },
+    );
+  }, { scope: cardRef, dependencies: [visible] });
+
+  /* Already activated or dismissed */
+  if (!visible || estado === 'activado') return null;
+
+  return (
+    <div
+      ref={cardRef}
+      style={{
+        border: '1px solid rgba(0,0,0,0.08)',
+        borderRadius: 16,
+        background: '#FFFFFF',
+        padding: '1.25rem',
+        marginBottom: '1.25rem',
+        position: 'relative',
+      }}
+    >
+      {/* Dismiss X */}
+      <button
+        onClick={() => dismiss(false)}
+        aria-label="Cerrar"
+        style={{
+          position: 'absolute', top: 10, right: 10,
+          width: 28, height: 28, borderRadius: 8, border: 'none',
+          background: 'rgba(0,0,0,0.05)', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <XIcon size={13} color="#9CA3AF" strokeWidth={2} />
+      </button>
+
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        {/* Bell icon */}
+        <div style={{
+          width: 38, height: 38, borderRadius: 10,
+          background: '#0A0A0A', flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Bell size={16} color="#FFFFFF" strokeWidth={2.5} />
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{
+            fontSize: '0.9375rem', fontWeight: 700,
+            color: '#0A0A0A', margin: '0 0 4px',
+            letterSpacing: '-0.01em',
+          }}>
+            ¿Quieres recordatorios de tu plan?
+          </p>
+          <p style={{ fontSize: '0.8125rem', color: '#6B7280', margin: '0 0 1rem', lineHeight: 1.5 }}>
+            Te avisamos cada mañana lo que toca hacer hoy,
+            sin tener que abrir la app.
+          </p>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => dismiss(true)}
+              style={{
+                flex: 1, height: 38, borderRadius: 10,
+                background: '#0A0A0A', color: '#FFFFFF', border: 'none',
+                fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                letterSpacing: '-0.01em',
+              }}
+            >
+              <Bell size={13} strokeWidth={2.5} />
+              Activar
+            </button>
+            <button
+              onClick={() => dismiss(false)}
+              style={{
+                flex: 1, height: 38, borderRadius: 10,
+                background: 'rgba(0,0,0,0.04)', color: '#6B7280',
+                border: '1px solid rgba(0,0,0,0.08)',
+                fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              Ahora no
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 type ChartPoint = Iniciativa & { x: number; y: number };
 
@@ -248,6 +360,9 @@ export default function MatrizPage() {
             </p>
           </div>
         )}
+
+        {/* ── Push onboarding (una sola vez, tras generar el primer informe) ── */}
+        {showAnalysis && <PushOnboardingCard />}
 
         {/* ── Calendar plan de acción (above the chart) ── */}
         {showAnalysis && (

@@ -5,9 +5,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { gsap } from 'gsap';
 import { toast } from 'sonner';
-import { X, Eye, EyeOff, Loader2, Building2, LogOut, UserCheck } from 'lucide-react';
+import { X, Eye, EyeOff, Loader2, Building2, LogOut, UserCheck, Bell, BellOff, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/store/authStore';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 /* ─── Validation schema ─── */
 const schema = z
@@ -52,6 +53,149 @@ const LABEL_STYLE: React.CSSProperties = {
   marginBottom: 6,
   display: 'block',
 };
+
+/* ─── Push notifications control ─── */
+
+function PushSection() {
+  const { estado, activar, desactivar, probar } = usePushNotifications();
+
+  const isLoading     = estado === 'cargando';
+  const isOn          = estado === 'activado';
+  const noSoportado   = estado === 'no-soportado';
+  const sinPermiso    = estado === 'sin-permiso';
+  const showToggle    = !noSoportado && !sinPermiso;
+
+  return (
+    <div style={{
+      borderTop: '1px solid rgba(0,0,0,0.06)',
+      paddingTop: '1rem',
+      marginTop: '0.625rem',
+    }}>
+      {/* Section label */}
+      <p style={{
+        fontSize: '0.5625rem', fontWeight: 800,
+        letterSpacing: '0.08em', textTransform: 'uppercase',
+        color: '#9CA3AF', margin: '0 0 0.75rem',
+      }}>
+        Notificaciones
+      </p>
+
+      {/* No soportado */}
+      {noSoportado && (
+        <p style={{ fontSize: '0.8125rem', color: '#9CA3AF', margin: 0 }}>
+          Tu navegador no soporta notificaciones push.
+        </p>
+      )}
+
+      {/* Permiso denegado */}
+      {sinPermiso && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 10,
+          background: '#FFFBEB', border: '1px solid #FDE68A',
+          borderRadius: 10, padding: '0.75rem',
+        }}>
+          <AlertTriangle size={14} color="#D97706" strokeWidth={2} style={{ marginTop: 1, flexShrink: 0 }} />
+          <p style={{ fontSize: '0.8125rem', color: '#92400E', margin: 0, lineHeight: 1.5 }}>
+            Las notificaciones están <strong>bloqueadas</strong>. Para habilitarlas,
+            ve a <strong>Configuración del sitio</strong> en tu navegador
+            y cambia el permiso a "Permitir".
+          </p>
+        </div>
+      )}
+
+      {/* Toggle + test button */}
+      {showToggle && (
+        <>
+          {/* Toggle row */}
+          <div style={{
+            display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between', gap: 12,
+            padding: '0.5rem 0',
+          }}>
+            <div style={{ minWidth: 0 }}>
+              <p style={{
+                fontSize: '0.875rem', fontWeight: 600,
+                color: '#0A0A0A', margin: 0, lineHeight: 1.3,
+              }}>
+                Recordatorios del plan
+              </p>
+              <p style={{ fontSize: '0.75rem', color: '#9CA3AF', margin: '2px 0 0' }}>
+                {isOn
+                  ? 'Recibirás avisos cada mañana'
+                  : 'Te avisamos lo que toca hacer hoy'}
+              </p>
+            </div>
+
+            {/* Pill toggle */}
+            <button
+              aria-label={isOn ? 'Desactivar notificaciones' : 'Activar notificaciones'}
+              onClick={() => void (isOn ? desactivar() : activar())}
+              disabled={isLoading}
+              style={{
+                width: 46, height: 26, borderRadius: 999,
+                border: 'none', flexShrink: 0,
+                background: isLoading
+                  ? '#D1D5DB'
+                  : isOn
+                    ? '#0A0A0A'
+                    : 'rgba(0,0,0,0.12)',
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                position: 'relative',
+                transition: 'background 0.2s ease',
+              }}
+            >
+              {/* Knob */}
+              <div style={{
+                position: 'absolute',
+                top: 3,
+                left: isOn ? 23 : 3,
+                width: 20, height: 20,
+                borderRadius: '50%',
+                background: '#FFFFFF',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
+                transition: 'left 0.2s ease',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {isLoading && (
+                  <Loader2 size={10} color="#9CA3AF" strokeWidth={2.5} className="animate-spin" />
+                )}
+              </div>
+            </button>
+          </div>
+
+          {/* Test button — only when active */}
+          {isOn && (
+            <button
+              onClick={() => void probar()}
+              style={{
+                width: '100%', height: 38, borderRadius: 10,
+                background: 'rgba(0,0,0,0.04)',
+                color: '#374151',
+                border: '1px solid rgba(0,0,0,0.08)',
+                fontSize: '0.8125rem', fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                marginTop: '0.25rem',
+                transition: 'background 0.15s',
+              }}
+            >
+              <Bell size={13} strokeWidth={2} />
+              Enviar notificación de prueba
+            </button>
+          )}
+
+          {/* Status icon — subtle */}
+          {!isOn && !isLoading && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>
+              <BellOff size={11} color="#D1D5DB" strokeWidth={2} />
+              <span style={{ fontSize: '0.6875rem', color: '#D1D5DB' }}>Sin notificaciones activas</span>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 /* ─── Registro form (inside the sheet) ─── */
 function RegistroForm({ onBack }: { onBack: () => void }) {
@@ -534,6 +678,9 @@ export function UserSheet({ open, onClose }: Props) {
                 <Building2 size={16} strokeWidth={2} />
                 Cambiar empresa
               </button>
+
+              {/* Push notifications */}
+              <PushSection />
 
               {/* Cerrar sesión */}
               <button

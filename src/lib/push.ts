@@ -37,15 +37,19 @@ export function getNotificationPermission(): NotificationPermission {
  *   const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
  *   await registration.pushManager.subscribe({ applicationServerKey, userVisibleOnly: true });
  */
-export function urlBase64ToUint8Array(base64String: string): Uint8Array {
+export function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   // Restaurar el padding que la codificación base64url omite
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64  = (base64String + padding)
     .replace(/-/g, '+')
     .replace(/_/g, '/');
 
-  const rawData = window.atob(base64);
-  return Uint8Array.from(
-    [...rawData].map((char) => char.charCodeAt(0)),
-  );
+  const rawData  = window.atob(base64);
+  // Usar new Uint8Array(n) garantiza ArrayBuffer (no SharedArrayBuffer),
+  // requerido por applicationServerKey en TypeScript 6.
+  const result   = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) {
+    result[i] = rawData.charCodeAt(i);
+  }
+  return result;
 }
