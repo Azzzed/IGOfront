@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import MainLayout from '@/components/layout/MainLayout';
@@ -15,6 +16,23 @@ import PlanPage        from '@/pages/PlanPage';
 import AdminPage       from '@/pages/AdminPage';
 
 export default function App() {
+  /* SW lifecycle — auto-update silencioso con toast informativo */
+  const { updateServiceWorker } = useRegisterSW({
+    onNeedRefresh() {
+      toast.info('Nueva versión disponible', {
+        description: 'Recarga para aplicar la actualización.',
+        duration: Infinity,
+        action: {
+          label: 'Actualizar',
+          onClick: () => void updateServiceWorker(true),
+        },
+      });
+    },
+    onOfflineReady() {
+      toast.success('IGO listo sin conexión', { duration: 3000 });
+    },
+  });
+
   return (
     <BrowserRouter>
       <Toaster

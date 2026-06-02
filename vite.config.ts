@@ -1,18 +1,78 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
-import path from 'path'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+import path from 'path';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    VitePWA({
+      /* ── Strategy: custom SW (needed for push event handlers) ── */
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+
+      /* ── Auto-update silently on new deploy ── */
+      registerType: 'autoUpdate',
+      injectRegister: 'auto',
+
+      /* ── Web App Manifest ── */
+      manifest: {
+        name: 'IGO Manager',
+        short_name: 'IGO',
+        description: 'Prioriza y organiza las iniciativas de tu negocio',
+        theme_color: '#0A0A0A',
+        background_color: '#FFFFFF',
+        display: 'standalone',
+        orientation: 'portrait',
+        scope: '/',
+        start_url: '/',
+        icons: [
+          {
+            src: '/icons/icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+          },
+          {
+            src: '/icons/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+          },
+          {
+            src: '/icons/icon-512-maskable.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+      },
+
+      /* ── What to precache (only static assets, NEVER API) ── */
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        // API calls go to Railway domain (cross-origin) — never cached by SW.
+        // In dev, the Vite proxy maps /api → localhost:8000 (same-origin),
+        // so we explicitly deny it from the navigation fallback in sw.ts.
+        globIgnores: ['**/node_modules/**'],
+      },
+
+      /* ── Enable SW in dev so we can inspect it in DevTools ── */
+      devOptions: {
+        enabled: true,
+        type: 'module',
+        navigateFallback: 'index.html',
+      },
+    }),
   ],
+
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      '@': path.resolve(__dirname, './src'),
     },
   },
+
   server: {
     proxy: {
       '/api': {
@@ -22,4 +82,4 @@ export default defineConfig({
       },
     },
   },
-})
+});
