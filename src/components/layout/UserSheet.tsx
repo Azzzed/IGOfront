@@ -58,12 +58,22 @@ const LABEL_STYLE: React.CSSProperties = {
 
 function PushSection() {
   const { estado, activar, desactivar, probar } = usePushNotifications();
+  const [testing, setTesting] = useState(false);
 
-  const isLoading     = estado === 'cargando';
-  const isOn          = estado === 'activado';
-  const noSoportado   = estado === 'no-soportado';
-  const sinPermiso    = estado === 'sin-permiso';
-  const showToggle    = !noSoportado && !sinPermiso;
+  const isLoading   = estado === 'cargando';
+  const isOn        = estado === 'activado';
+  const noSoportado = estado === 'no-soportado';
+  const sinPermiso  = estado === 'sin-permiso';
+  const showToggle  = !noSoportado && !sinPermiso;
+
+  const handleProbar = async () => {
+    setTesting(true);
+    try {
+      await probar();
+    } finally {
+      setTesting(false);
+    }
+  };
 
   return (
     <div style={{
@@ -80,14 +90,21 @@ function PushSection() {
         Notificaciones
       </p>
 
-      {/* No soportado */}
+      {/* ── No soportado ── */}
       {noSoportado && (
-        <p style={{ fontSize: '0.8125rem', color: '#9CA3AF', margin: 0 }}>
-          Tu navegador no soporta notificaciones push.
-        </p>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.07)',
+          borderRadius: 10, padding: '0.625rem 0.875rem',
+        }}>
+          <BellOff size={13} color="#9CA3AF" strokeWidth={2} />
+          <p style={{ fontSize: '0.8125rem', color: '#9CA3AF', margin: 0 }}>
+            Tu navegador no soporta notificaciones push.
+          </p>
+        </div>
       )}
 
-      {/* Permiso denegado */}
+      {/* ── Permiso denegado ── */}
       {sinPermiso && (
         <div style={{
           display: 'flex', alignItems: 'flex-start', gap: 10,
@@ -103,7 +120,7 @@ function PushSection() {
         </div>
       )}
 
-      {/* Toggle + test button */}
+      {/* ── Toggle + test button ── */}
       {showToggle && (
         <>
           {/* Toggle row */}
@@ -163,34 +180,41 @@ function PushSection() {
             </button>
           </div>
 
-          {/* Test button — only when active */}
-          {isOn && (
-            <button
-              onClick={() => void probar()}
-              style={{
-                width: '100%', height: 38, borderRadius: 10,
-                background: 'rgba(0,0,0,0.04)',
-                color: '#374151',
-                border: '1px solid rgba(0,0,0,0.08)',
-                fontSize: '0.8125rem', fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                marginTop: '0.25rem',
-                transition: 'background 0.15s',
-              }}
-            >
-              <Bell size={13} strokeWidth={2} />
-              Enviar notificación de prueba
-            </button>
-          )}
-
-          {/* Status icon — subtle */}
-          {!isOn && !isLoading && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>
-              <BellOff size={11} color="#D1D5DB" strokeWidth={2} />
-              <span style={{ fontSize: '0.6875rem', color: '#D1D5DB' }}>Sin notificaciones activas</span>
-            </div>
-          )}
+          {/* ── Test button — ALWAYS visible, disabled when not active ──
+               IMPORTANTE: El botón no se oculta cuando estado !== 'activado'.
+               Si está deshabilitado, el usuario sabe que existe y que necesita
+               activar primero. Esto evita el bug donde el botón nunca aparecía
+               porque la condición {isOn && ...} jamás se cumplía.           */}
+          <button
+            onClick={() => void handleProbar()}
+            disabled={!isOn || testing || isLoading}
+            style={{
+              width: '100%', height: 40, borderRadius: 10,
+              border: isOn
+                ? '1px solid rgba(0,0,0,0.10)'
+                : '1px solid rgba(0,0,0,0.05)',
+              background: isOn
+                ? 'rgba(0,0,0,0.04)'
+                : 'rgba(0,0,0,0.02)',
+              color: isOn ? '#374151' : '#C4C9D0',
+              fontSize: '0.8125rem', fontWeight: 600,
+              cursor: (!isOn || testing || isLoading) ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+              marginTop: '0.375rem',
+              transition: 'background 0.15s, color 0.15s, border-color 0.15s',
+            }}
+          >
+            {testing
+              ? <Loader2 size={13} strokeWidth={2.5} className="animate-spin" />
+              : <Bell size={13} strokeWidth={2} />
+            }
+            {testing
+              ? 'Enviando…'
+              : isOn
+                ? 'Enviar notificación de prueba'
+                : 'Activa para recibir notificaciones'
+            }
+          </button>
         </>
       )}
     </div>

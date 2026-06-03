@@ -149,13 +149,40 @@ export function usePushNotifications(): UsePushNotificationsResult {
 
   /* ── probar ─────────────────────────────────────────────────────── */
   const probar = useCallback(async () => {
+    interface ProbarPreview {
+      title: string;
+      body:  string;
+      url:   string;
+      icon?: string;
+    }
+    interface ProbarResponse {
+      success: boolean;
+      data?:   { enviadas: number; preview?: ProbarPreview | null };
+      message?: string;
+    }
+
     try {
-      await api.post('/push/probar');
-      toast.success('Notificación de prueba enviada — revisa tus notificaciones del sistema', {
-        duration: 5000,
-      });
+      const res = await api.post<ProbarResponse>('/push/probar');
+      const preview = res.data.data?.preview ?? null;
+
+      if (preview) {
+        toast.success(`✓ Enviada: "${preview.title}"`, {
+          description: preview.body,
+          duration: 6000,
+        });
+      } else {
+        toast.success('Notificación de prueba enviada ✓', {
+          description: 'Revisa las notificaciones de tu sistema operativo',
+          duration: 5000,
+        });
+      }
     } catch (err: unknown) {
-      toast.error(extractMsg(err) ?? 'Error al enviar notificación de prueba');
+      const msg = extractMsg(err);
+      if (msg?.toLowerCase().includes('notificaciones activadas') || msg?.toLowerCase().includes('suscripci')) {
+        toast.error('Activa las notificaciones primero para enviar una prueba');
+      } else {
+        toast.error(msg ?? 'Error al enviar notificación de prueba');
+      }
     }
   }, []);
 
