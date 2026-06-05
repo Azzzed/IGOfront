@@ -31,17 +31,20 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: '/icons/icon-192.png',
+            /* ?v=2 rompe la caché del SO/navegador para forzar re-descarga
+               cuando el PNG ha cambiado pero el nombre de archivo es el mismo.
+               Incrementar a ?v=3, ?v=4, etc. cada vez que se actualicen los PNGs. */
+            src: '/icons/icon-192.png?v=2',
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: '/icons/icon-512.png',
+            src: '/icons/icon-512.png?v=2',
             sizes: '512x512',
             type: 'image/png',
           },
           {
-            src: '/icons/icon-512-maskable.png',
+            src: '/icons/icon-512-maskable.png?v=2',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
