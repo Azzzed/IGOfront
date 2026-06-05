@@ -3,333 +3,104 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>OrganicLoader — IGO Manager</title>
+<title>OrganicLoader v2 (goo) — IGO Manager</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: 'Inter', system-ui, sans-serif;
-    background: #F8F8F8;
+  body { font-family: 'Inter', system-ui, sans-serif; }
+
+  /* Fondo con gradiente tipo BgOrbs — prueba la transparencia (no caja blanca) */
+  .bg-grad {
+    background:
+      radial-gradient(circle at 20% 20%, rgba(167,139,250,0.22), transparent 45%),
+      radial-gradient(circle at 80% 70%, rgba(147,197,253,0.20), transparent 50%),
+      linear-gradient(160deg, #FFFFFF, #F1ECFB);
   }
+  .bg-dark { background: #0A0A0A; }
 
-  .page { display: flex; flex-direction: column; gap: 0; }
-
-  /* ── Section grid ── */
   .section {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3rem 2rem;
-    gap: 1.5rem;
-    position: relative;
+    min-height: 300px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 1.1rem; position: relative;
   }
-  .section-label {
-    font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #9CA3AF;
-    position: absolute;
-    top: 1rem;
-    left: 1.5rem;
+  .tag {
+    position: absolute; top: 14px; left: 18px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: #9CA3AF;
   }
-  .section-desc {
-    font-size: 0.875rem;
-    text-align: center;
-    max-width: 280px;
-    line-height: 1.5;
-  }
+  .tag.light { color: rgba(255,255,255,0.4); }
 
-  /* ── Backgrounds ── */
-  .bg-white { background: #FFFFFF; border-bottom: 1px solid rgba(0,0,0,0.07); }
-  .bg-dark  { background: #0A0A0A; }
+  .loader { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+  .label { font-size: 0.9375rem; font-weight: 600; color: #374151; }
+  .label.light { color: rgba(255,255,255,0.75); }
 
-  /* ═══════════════════════════════════════════
-     METABALL ENGINE
-     filter: blur + contrast sobre fondo sólido
-     ═══════════════════════════════════════════ */
+  /* Canvas TRANSPARENTE con filtro goo */
+  .canvas { position: relative; }
+  .goo { filter: url(#goo); position: relative; width: 100%; height: 100%; }
 
-  /* Canvas: tiene el filtro aplicado + fondo sólido */
-  .mb-canvas {
-    position: relative;
-    /* Magia: blur suaviza bordes, contrast los "chasquea" de vuelta a sólido */
-    flex-shrink: 0;
-  }
-  .mb-canvas.dark {
-    background: #FFFFFF;
-    filter: blur(10px) contrast(20);
-  }
-  .mb-canvas.light {
-    background: #0A0A0A;
-    filter: blur(10px) contrast(20);
-  }
-
-  /* Blobs: círculos sólidos dentro del canvas */
-  .blob {
-    position: absolute;
-    border-radius: 50%;
-  }
+  .blob { position: absolute; border-radius: 50%; will-change: transform; }
   .dark  .blob { background: #0A0A0A; }
   .light .blob { background: #FFFFFF; }
 
-  /* ── SIZE: sm ── */
-  .mb-sm { width: 80px; height: 80px; }
-  .mb-sm .blob-0 { width: 28px; height: 28px; left: calc(50% + -14px); top: calc(50% + -14px); animation: b0 2.3s ease-in-out infinite alternate; }
-  .mb-sm .blob-1 { width: 22px; height: 22px; left: calc(50% + -4px); top: calc(50% + -19px); animation: b1x 2.0s ease-in-out infinite alternate, b1y 2.7s ease-in-out infinite alternate 0.5s; }
-  .mb-sm .blob-2 { width: 20px; height: 20px; left: calc(50% + -20px); top: calc(50% + -4px); animation: b2x 1.9s ease-in-out infinite alternate 0.7s, b2y 2.4s ease-in-out infinite alternate 0.2s, b2s 3.1s ease-in-out infinite alternate; }
-  .mb-sm .blob-3 { width: 16px; height: 16px; left: calc(50% + -4px); top: calc(50% + 0px); animation: b3x 1.5s ease-in-out infinite alternate 1.1s, b3y 2.1s ease-in-out infinite alternate 0.4s, b3s 1.8s ease-in-out infinite alternate 0.9s; }
+  /* md size: 120px */
+  .c-md { width: 120px; height: 120px; }
+  .c-md .b0 { width: 40px; height: 40px; left: calc(50% - 20px); top: calc(50% - 20px); animation: br 2.3s ease-in-out infinite alternate; }
+  .c-md .b1 { width: 30px; height: 30px; left: calc(50% - 4px); top: calc(50% - 22px); animation: x1 2.0s ease-in-out infinite alternate, y1 2.7s ease-in-out infinite alternate 0.5s; }
+  .c-md .b2 { width: 26px; height: 26px; left: calc(50% - 22px); top: calc(50% - 4px); animation: x2 1.9s ease-in-out infinite alternate 0.7s, y2 2.4s ease-in-out infinite alternate 0.2s; }
+  .c-md .b3 { width: 21px; height: 21px; left: calc(50% - 3px); top: calc(50% + 2px); animation: x3 1.5s ease-in-out infinite alternate 1.1s, y3 2.1s ease-in-out infinite alternate 0.4s; }
 
-  /* ── SIZE: md ── */
-  .mb-md { width: 130px; height: 130px; }
-  .mb-md .blob-0 { width: 44px; height: 44px; left: calc(50% + -22px); top: calc(50% + -22px); animation: b0 2.3s ease-in-out infinite alternate; }
-  .mb-md .blob-1 { width: 34px; height: 34px; left: calc(50% + -5px); top: calc(50% + -27px); animation: b1x-md 2.0s ease-in-out infinite alternate, b1y-md 2.7s ease-in-out infinite alternate 0.5s; }
-  .mb-md .blob-2 { width: 30px; height: 30px; left: calc(50% + -25px); top: calc(50% + -5px); animation: b2x-md 1.9s ease-in-out infinite alternate 0.7s, b2y-md 2.4s ease-in-out infinite alternate 0.2s, b2s 3.1s ease-in-out infinite alternate; }
-  .mb-md .blob-3 { width: 24px; height: 24px; left: calc(50% + -4px); top: calc(50% + 4px); animation: b3x-md 1.5s ease-in-out infinite alternate 1.1s, b3y-md 2.1s ease-in-out infinite alternate 0.4s, b3s 1.8s ease-in-out infinite alternate 0.9s; }
-
-  /* ── SIZE: lg ── */
-  .mb-lg { width: 190px; height: 190px; }
-  .mb-lg .blob-0 { width: 64px; height: 64px; left: calc(50% + -32px); top: calc(50% + -32px); animation: b0 2.3s ease-in-out infinite alternate; }
-  .mb-lg .blob-1 { width: 50px; height: 50px; left: calc(50% + -7px); top: calc(50% + -39px); animation: b1x-lg 2.0s ease-in-out infinite alternate, b1y-lg 2.7s ease-in-out infinite alternate 0.5s; }
-  .mb-lg .blob-2 { width: 44px; height: 44px; left: calc(50% + -36px); top: calc(50% + -7px); animation: b2x-lg 1.9s ease-in-out infinite alternate 0.7s, b2y-lg 2.4s ease-in-out infinite alternate 0.2s, b2s 3.1s ease-in-out infinite alternate; }
-  .mb-lg .blob-3 { width: 34px; height: 34px; left: calc(50% + -6px); top: calc(50% + 8px); animation: b3x-lg 1.5s ease-in-out infinite alternate 1.1s, b3y-lg 2.1s ease-in-out infinite alternate 0.4s, b3s 1.8s ease-in-out infinite alternate 0.9s; }
-
-  /* ── Keyframes SM ── */
-  @keyframes b0  { from { transform: scale(1); } to { transform: scale(1.18); } }
-  @keyframes b1x { from { transform: translateX(0); } to { transform: translateX(12px); } }
-  @keyframes b1y { from { transform: translateY(0); } to { transform: translateY(-11px); } }
-  @keyframes b2x { from { transform: translateX(0); } to { transform: translateX(-13px); } }
-  @keyframes b2y { from { transform: translateY(0); } to { transform: translateY(9px); } }
-  @keyframes b2s { from { transform: scale(1); } to { transform: scale(1.12); } }
-  @keyframes b3x { from { transform: translateX(0); } to { transform: translateX(8px); } }
-  @keyframes b3y { from { transform: translateY(0); } to { transform: translateY(12px); } }
-  @keyframes b3s { from { transform: scale(1); } to { transform: scale(1.25); } }
-
-  /* ── Keyframes MD ── */
-  @keyframes b1x-md { from { transform: translateX(0); } to { transform: translateX(30px); } }
-  @keyframes b1y-md { from { transform: translateY(0); } to { transform: translateY(-22px); } }
-  @keyframes b2x-md { from { transform: translateX(0); } to { transform: translateX(-26px); } }
-  @keyframes b2y-md { from { transform: translateY(0); } to { transform: translateY(18px); } }
-  @keyframes b3x-md { from { transform: translateX(0); } to { transform: translateX(16px); } }
-  @keyframes b3y-md { from { transform: translateY(0); } to { transform: translateY(24px); } }
-
-  /* ── Keyframes LG ── */
-  @keyframes b1x-lg { from { transform: translateX(0); } to { transform: translateX(42px); } }
-  @keyframes b1y-lg { from { transform: translateY(0); } to { transform: translateY(-31px); } }
-  @keyframes b2x-lg { from { transform: translateX(0); } to { transform: translateX(-36px); } }
-  @keyframes b2y-lg { from { transform: translateY(0); } to { transform: translateY(25px); } }
-  @keyframes b3x-lg { from { transform: translateX(0); } to { transform: translateX(22px); } }
-  @keyframes b3y-lg { from { transform: translateY(0); } to { transform: translateY(34px); } }
-
-  /* ── Label ── */
-  .loader-label {
-    font-size: 0.9375rem;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    text-align: center;
-  }
-  .label-dark  { color: #374151; }
-  .label-light { color: rgba(255,255,255,0.7); }
-  .label-sm    { font-size: 0.75rem; }
-  .label-sub {
-    font-size: 0.8125rem;
-    color: #9CA3AF;
-    text-align: center;
-    margin-top: -0.5rem;
-  }
-
-  /* ── Wrapper combina canvas + label ── */
-  .loader-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1.125rem;
-  }
-  .loader-wrap.sm { gap: 0.625rem; }
-
-  /* ── Full screen mock ── */
-  .mock-fullscreen {
-    width: 100%;
-    height: 320px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-  }
-  .mock-fullscreen.white { background: #FFFFFF; }
-  .mock-fullscreen.dark  { background: #0A0A0A; }
-
-  /* ── Divider ── */
-  .divider {
-    height: 1px;
-    background: rgba(0,0,0,0.07);
-    width: 100%;
-  }
-
-  /* ── Grid row ── */
-  .row {
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 4rem;
-    flex-wrap: wrap;
-    padding: 3rem 2rem;
-  }
-  .row-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-  }
-  .size-tag {
-    font-size: 0.625rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #9CA3AF;
-    border: 1px solid rgba(0,0,0,0.08);
-    padding: 2px 8px;
-    border-radius: 999px;
-  }
+  @keyframes br { from { transform: scale(1); } to { transform: scale(1.16); } }
+  @keyframes x1 { from { transform: translateX(0); } to { transform: translateX(27px); } }
+  @keyframes y1 { from { transform: translateY(0); } to { transform: translateY(-20px); } }
+  @keyframes x2 { from { transform: translateX(0); } to { transform: translateX(-23px); } }
+  @keyframes y2 { from { transform: translateY(0); } to { transform: translateY(16px); } }
+  @keyframes x3 { from { transform: translateX(0); } to { transform: translateX(14px); } }
+  @keyframes y3 { from { transform: translateY(0); } to { transform: translateY(25px); } }
 </style>
 </head>
 <body>
-<div class="page">
 
-  <!-- ══════════════════════════════════════
-       SECCIÓN 1: AuthGate / pantalla completa
-       ══════════════════════════════════════ -->
-  <div class="mock-fullscreen white">
-    <span class="section-label" style="color:#9CA3AF;font-size:0.6875rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;position:absolute;top:1rem;left:1.5rem;">AuthGate · fullScreen · variant="dark"</span>
-    <div class="loader-wrap">
-      <div class="mb-canvas dark mb-lg">
-        <div class="blob blob-0"></div>
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
-        <div class="blob blob-3"></div>
+<!-- Filtro goo compartido -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <filter id="goo">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur" />
+      <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -8" />
+    </filter>
+  </defs>
+</svg>
+
+<!-- Sección 1: sobre gradiente (prueba: SIN caja blanca, nítido) -->
+<div class="section bg-grad">
+  <span class="tag">variant="dark" · sobre gradiente (móvil) · sin caja blanca</span>
+  <div class="loader">
+    <div class="canvas c-md dark">
+      <div class="goo">
+        <div class="blob b0"></div>
+        <div class="blob b1"></div>
+        <div class="blob b2"></div>
+        <div class="blob b3"></div>
       </div>
     </div>
+    <span class="label">Generando tu matriz IGO…</span>
   </div>
-
-  <div class="divider"></div>
-
-  <!-- ══════════════════════════════════════
-       SECCIÓN 2: Página oscura (light variant)
-       ══════════════════════════════════════ -->
-  <div class="mock-fullscreen dark">
-    <span style="color:rgba(255,255,255,0.3);font-size:0.6875rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;position:absolute;top:1rem;left:1.5rem;">Logout · fullScreen · variant="light"</span>
-    <div class="loader-wrap">
-      <div class="mb-canvas light mb-lg">
-        <div class="blob blob-0"></div>
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
-        <div class="blob blob-3"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="divider"></div>
-
-  <!-- ══════════════════════════════════════
-       SECCIÓN 3: Todas las variantes
-       ══════════════════════════════════════ -->
-  <div style="background:#FFFFFF;padding:0.75rem 1.5rem 0.5rem;">
-    <span style="font-size:0.6875rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9CA3AF;">Tres tamaños · variant="dark" · fondo blanco</span>
-  </div>
-  <div class="row bg-white" style="padding-top:2rem;padding-bottom:2.5rem;">
-
-    <div class="row-item">
-      <div class="loader-wrap sm">
-        <div class="mb-canvas dark mb-sm">
-          <div class="blob blob-0"></div>
-          <div class="blob blob-1"></div>
-          <div class="blob blob-2"></div>
-          <div class="blob blob-3"></div>
-        </div>
-        <span class="loader-label label-dark label-sm">Cargando empresas…</span>
-      </div>
-      <span class="size-tag">size="sm"</span>
-    </div>
-
-    <div class="row-item">
-      <div class="loader-wrap">
-        <div class="mb-canvas dark mb-md">
-          <div class="blob blob-0"></div>
-          <div class="blob blob-1"></div>
-          <div class="blob blob-2"></div>
-          <div class="blob blob-3"></div>
-        </div>
-        <span class="loader-label label-dark">Generando informe con IA…</span>
-      </div>
-      <span class="size-tag">size="md"</span>
-    </div>
-
-    <div class="row-item">
-      <div class="loader-wrap">
-        <div class="mb-canvas dark mb-lg">
-          <div class="blob blob-0"></div>
-          <div class="blob blob-1"></div>
-          <div class="blob blob-2"></div>
-          <div class="blob blob-3"></div>
-        </div>
-        <span class="loader-label label-dark">Cargando…</span>
-      </div>
-      <span class="size-tag">size="lg"</span>
-    </div>
-
-  </div>
-
-  <div class="divider"></div>
-
-  <!-- ══════════════════════════════════════
-       SECCIÓN 4: Contextos reales en la app
-       ══════════════════════════════════════ -->
-  <div style="background:#FFFFFF;padding:0.75rem 1.5rem 0.5rem;">
-    <span style="font-size:0.6875rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9CA3AF;">Contextos reales de la app</span>
-  </div>
-
-  <!-- MatrizPage loading -->
-  <div style="background:#FFFFFF;border-bottom:1px solid rgba(0,0,0,0.06);padding:2.5rem 1rem;display:flex;flex-direction:column;align-items:center;gap:0;">
-    <div class="loader-wrap">
-      <div class="mb-canvas dark mb-md">
-        <div class="blob blob-0"></div>
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
-        <div class="blob blob-3"></div>
-      </div>
-      <span class="loader-label label-dark">Generando tu matriz IGO…</span>
-    </div>
-    <p style="font-size:0.8125rem;color:#9CA3AF;margin-top:0.75rem;text-align:center;">Analizando iniciativas con IA… Puede tomar hasta 30 s.</p>
-    <span style="font-size:0.625rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9CA3AF;margin-top:1rem;">MatrizPage — generando análisis</span>
-  </div>
-
-  <!-- InformePage loading -->
-  <div style="background:#FFFFFF;border-bottom:1px solid rgba(0,0,0,0.06);padding:2rem 1rem;display:flex;flex-direction:column;align-items:center;gap:0;">
-    <div class="loader-wrap sm">
-      <div class="mb-canvas dark mb-sm">
-        <div class="blob blob-0"></div>
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
-        <div class="blob blob-3"></div>
-      </div>
-      <span class="loader-label label-dark label-sm">Cargando informe…</span>
-    </div>
-    <span style="font-size:0.625rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9CA3AF;margin-top:1rem;">InformePage — carga inicial</span>
-  </div>
-
-  <!-- EmpresasPage / IniciativasPage -->
-  <div style="background:#FFFFFF;padding:2rem 1rem;display:flex;flex-direction:column;align-items:center;gap:0;">
-    <div class="loader-wrap sm">
-      <div class="mb-canvas dark mb-sm">
-        <div class="blob blob-0"></div>
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
-        <div class="blob blob-3"></div>
-      </div>
-      <span class="loader-label label-dark label-sm">Cargando iniciativas…</span>
-    </div>
-    <span style="font-size:0.625rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#9CA3AF;margin-top:1rem;">IniciativasPage · EmpresasPage</span>
-  </div>
-
 </div>
+
+<!-- Sección 2: variant light sobre fondo oscuro -->
+<div class="section bg-dark">
+  <span class="tag light">variant="light" · fullScreen oscuro</span>
+  <div class="loader">
+    <div class="canvas c-md light">
+      <div class="goo">
+        <div class="blob b0"></div>
+        <div class="blob b1"></div>
+        <div class="blob b2"></div>
+        <div class="blob b3"></div>
+      </div>
+    </div>
+    <span class="label light">Cerrando sesión…</span>
+  </div>
+</div>
+
 </body>
 </html>

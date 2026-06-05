@@ -195,6 +195,34 @@ export default function MatrizPage() {
     [matrizData],
   );
 
+  /* Mapa de colisiones: varias iniciativas con la MISMA (gobernabilidad, importancia)
+     caen en el mismo punto del grid y se apilan exactamente → solo se ve una.
+     Calculamos, por cada iniciativa, su índice dentro del grupo que comparte
+     coordenadas y el tamaño del grupo, para repartirlas en un pequeño anillo. */
+  const collisionMap = useMemo(() => {
+    const groups = new Map<string, number[]>();
+    chartData.forEach((d) => {
+      const key = `${d.x}|${d.y}`;
+      const arr = groups.get(key);
+      if (arr) arr.push(d.id);
+      else groups.set(key, [d.id]);
+    });
+    const map = new Map<number, { index: number; size: number }>();
+    groups.forEach((ids) => {
+      ids.forEach((id, index) => map.set(id, { index, size: ids.length }));
+    });
+    return map;
+  }, [chartData]);
+
+  /* Desplazamiento en píxeles para separar puntos solapados (anillo) */
+  const dotOffset = (id: number): { ox: number; oy: number } => {
+    const info = collisionMap.get(id);
+    if (!info || info.size < 2) return { ox: 0, oy: 0 };
+    const radius = 9 + Math.min(info.size, 6) * 1.5;       // crece con el grupo
+    const angle  = (2 * Math.PI * info.index) / info.size - Math.PI / 2;
+    return { ox: Math.cos(angle) * radius, oy: Math.sin(angle) * radius };
+  };
+
   const asintota = matrizData?.asintotas ?? { importancia: 3, gobernabilidad: 3 };
 
   const counts = useMemo(() => {
@@ -445,10 +473,15 @@ export default function MatrizPage() {
                 <Scatter
                   data={chartData}
                   shape={(p: ScatterShapeProps) => {
-                    const cx  = p.cx as number;
-                    const cy  = p.cy as number;
-                    const dot = p.payload as ChartPoint;
-                    if (typeof cx !== 'number' || typeof cy !== 'number' || !dot) return <g />;
+                    const rawCx = p.cx as number;
+                    const rawCy = p.cy as number;
+                    const dot   = p.payload as ChartPoint;
+                    if (typeof rawCx !== 'number' || typeof rawCy !== 'number' || !dot) return <g />;
+
+                    /* Separa puntos que comparten coordenadas para que se vean todos */
+                    const { ox, oy } = dotOffset(dot.id);
+                    const cx = rawCx + ox;
+                    const cy = rawCy + oy;
 
                     const q          = CUADRANTES[dot.cuadrante as Cuadrante];
                     const isSelected = selectedId === dot.id;
@@ -461,18 +494,18 @@ export default function MatrizPage() {
                         onTouchEnd={(e) => { e.preventDefault(); setSelectedId(isSelected ? null : dot.id); }}
                       >
                         {/* Tap target — transparent, larger hit area */}
-                        <circle cx={cx} cy={cy} r={22} fill="transparent" />
+                        <circle cx={cx} cy={cy} r={18} fill="transparent" />
 
                         {/* Selection ring */}
                         {isSelected && <circle cx={cx} cy={cy} r={14} fill={q.color} opacity={0.18} />}
                         {isSelected && <circle cx={cx} cy={cy} r={12} fill="none" stroke={q.color} strokeWidth={2} />}
 
                         {/* Glow halo */}
-                        <circle cx={cx} cy={cy} r={14} fill={q.color} opacity={isSelected ? 0 : 0.09} />
+                        <circle cx={cx} cy={cy} r={13} fill={q.color} opacity={isSelected ? 0 : 0.09} />
                         {/* Main dot */}
-                        <circle cx={cx} cy={cy} r={7} fill={q.color} />
+                        <circle cx={cx} cy={cy} r={6.5} fill={q.color} />
                         {/* White ring */}
-                        <circle cx={cx} cy={cy} r={7} fill="none" stroke="rgba(255,255,255,0.95)" strokeWidth={2} />
+                        <circle cx={cx} cy={cy} r={6.5} fill="none" stroke="rgba(255,255,255,0.95)" strokeWidth={2} />
                       </g>
                     );
                   }}

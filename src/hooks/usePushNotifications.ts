@@ -51,22 +51,24 @@ export function usePushNotifications(): UsePushNotificationsResult {
   const [estado, setEstado] = useState<PushEstado>(() => {
     if (!isPushSupported())                          return 'no-soportado';
     if (getNotificationPermission() === 'denied')    return 'sin-permiso';
-    return 'cargando'; // mount effect resolves actual state
+    return 'desactivado'; // OFF por defecto — el usuario activa explícitamente
   });
 
-  /* Verificar suscripción existente al montar */
+  /* Verificación al montar.
+   *
+   * IMPORTANTE: NO auto-activamos el toggle desde pushManager.getSubscription().
+   * Una suscripción push vive a nivel de DISPOSITIVO + scope del SW, no de la
+   * cuenta. Si un usuario activó notificaciones y luego otro usuario (o una
+   * sesión de exploración) abre la app en el mismo navegador, getSubscription()
+   * devolvía la suscripción heredada y encendía el toggle "por defecto" en todas
+   * las sesiones — provocando notificaciones cruzadas. Por eso arranca en
+   * 'desactivado' y solo pasa a 'activado' cuando el usuario pulsa activar().
+   */
   useEffect(() => {
     if (!isPushSupported()) return;
     if (getNotificationPermission() === 'denied') {
       setEstado('sin-permiso');
-      return;
     }
-    navigator.serviceWorker.ready
-      .then(async (reg) => {
-        const sub = await reg.pushManager.getSubscription();
-        setEstado(sub ? 'activado' : 'desactivado');
-      })
-      .catch(() => setEstado('desactivado'));
   }, []);
 
   /* ── activar ────────────────────────────────────────────────────── */

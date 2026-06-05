@@ -431,21 +431,23 @@ export function UserSheet({ open, onClose }: Props) {
   const { logout }      = useAuth();
   const navigate        = useNavigate();
   /*
-   * Lógica de "Modo exploración":
+   * Lógica de "Modo exploración" (muestra el botón "Crear cuenta gratuita"):
    *
-   *   isAuthenticated = true  → miramos el tipo de cuenta:
+   *   isAuthenticated = true  → es exploración salvo que esté CONFIRMADO registrado:
+   *     user.tipo === 'registrado' → cuenta real ✗ (oculta el CTA de registro)
    *     user.tipo === 'invitado'   → modo exploración ✓
-   *     user.tipo === 'registrado' → cuenta real ✗
-   *     user === null (AuthGate aún resolviendo) → cuenta real (no flash) ✗
+   *     user === null              → exploración ✓ (p.ej. /auth/me aún no resolvió
+   *                                  o falló la hidratación de una sesión invitada)
    *
    *   isAuthenticated = false → miramos si hubo sesión previa:
    *     sessionStatus === 'idle'    → nunca inició sesión → modo exploración ✓
    *     sessionStatus === 'expired' → sesión expirada → NO mostrar (redirige a /login) ✗
    *
-   * Esta condición evita el bug donde user:null + token válido mostraba "Modo exploración".
+   * Antes se usaba `user?.tipo === 'invitado'`, que con user:null daba false y
+   * ocultaba el botón de registro a los usuarios de exploración tras una recarga.
    */
   const isInvitado = isAuthenticated
-    ? user?.tipo === 'invitado'
+    ? user?.tipo !== 'registrado'
     : sessionStatus === 'idle';
 
   /* Body scroll lock */
