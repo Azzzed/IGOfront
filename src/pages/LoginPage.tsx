@@ -5,7 +5,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { gsap } from 'gsap';
 import { useGSAP } from '@gsap/react';
-import { Eye, EyeOff, TrendingUp, ArrowRight, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
+import { LogoBrand } from '@/components/common/LogoBrand';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/store/authStore';
@@ -226,14 +227,8 @@ export default function LoginPage() {
           >
             {/* Brand */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '1.75rem' }}>
-              <div
-                style={{
-                  width: 44, height: 44, borderRadius: 10, background: '#0A0A0A',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  marginBottom: '0.875rem',
-                }}
-              >
-                <TrendingUp size={20} color="white" strokeWidth={2.5} />
+              <div style={{ marginBottom: '0.875rem' }}>
+                <LogoBrand size={44} shape="circle" />
               </div>
               {/* Instrument Serif para el headline */}
               <h1

@@ -4,20 +4,19 @@ import {
   LayoutGrid,
   TrendingUp,
   FileText,
-  BarChart2,
   LogOut,
   ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/store/authStore';
+import { LogoBrand } from '@/components/common/LogoBrand';
 
 const NAV_ITEMS = [
   { to: '/empresas',    icon: Home,       label: 'Empresas'    },
   { to: '/iniciativas', icon: LayoutGrid, label: 'Iniciativas' },
   { to: '/matriz',      icon: TrendingUp, label: 'Matriz IGO'  },
   { to: '/informe',     icon: FileText,   label: 'Informe IA'  },
-  { to: '/admin',       icon: BarChart2,  label: 'Admin'       },
 ] as const;
 
 export default function Sidebar() {
@@ -43,12 +42,7 @@ export default function Sidebar() {
         className="flex items-center gap-3 px-5 py-5"
         style={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}
       >
-        <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: '#0A0A0A' }}
-        >
-          <TrendingUp size={15} color="white" strokeWidth={2.5} />
-        </div>
+        <LogoBrand size={32} shape="circle" />
         <div>
           <p
             style={{
