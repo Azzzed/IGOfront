@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,6 +8,7 @@ import { useGSAP } from '@gsap/react';
 import { Eye, EyeOff, TrendingUp, ArrowRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { useAuthStore } from '@/store/authStore';
 import { BgOrbs } from '@/components/common/BgOrbs';
 import { cn } from '@/lib/utils';
 import api from '@/lib/axios';
@@ -105,6 +106,18 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { login, crearInvitado } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
+
+  /* ── Detectar sesión expirada ── */
+  const sessionStatus     = useAuthStore((s) => s.sessionStatus);
+  const resetSessionStatus = useAuthStore((s) => s.resetSessionStatus);
+
+  useEffect(() => {
+    if (sessionStatus === 'expired') {
+      /* El interceptor ya mostró el toast; aquí solo limpiamos el estado
+         para que no se repita si el usuario recarga /login manualmente.  */
+      resetSessionStatus();
+    }
+  }, [sessionStatus, resetSessionStatus]);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingInvitado, setIsLoadingInvitado] = useState(false);

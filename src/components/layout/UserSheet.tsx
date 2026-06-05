@@ -424,10 +424,16 @@ export function UserSheet({ open, onClose }: Props) {
   const [step, setStep]           = useState<'main' | 'registro'>('main');
   const [loggingOut, setLoggingOut] = useState(false);
 
-  const user      = useAuthStore((s) => s.user);
-  const { logout } = useAuth();
-  const navigate  = useNavigate();
-  const isInvitado = !user || user.tipo === 'invitado';
+  const user          = useAuthStore((s) => s.user);
+  const sessionStatus = useAuthStore((s) => s.sessionStatus);
+  const { logout }    = useAuth();
+  const navigate      = useNavigate();
+  /*
+   * Un usuario es "invitado" (modo exploración) solo cuando ELIGIÓ ese camino.
+   * Si la sesión expiró (sessionStatus === 'expired'), el ProtectedRoute ya
+   * está redirigiendo a /login; no debemos mostrar el panel invitado.
+   */
+  const isInvitado = sessionStatus !== 'expired' && (!user || user.tipo === 'invitado');
 
   /* Body scroll lock */
   useEffect(() => {
