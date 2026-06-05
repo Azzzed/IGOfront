@@ -6,6 +6,7 @@ import {
   Plus, Zap, LayoutGrid, Loader2, X, ChevronRight, Trash2,
   Search, SlidersHorizontal, ChevronDown, Hand,
 } from 'lucide-react';
+import { OrganicLoader } from '@/components/common/OrganicLoader';
 import { toast } from 'sonner';
 import { useEmpresaStore } from '@/store/empresaStore';
 import { useIniciativas } from '@/hooks/useIniciativas';
@@ -765,9 +766,8 @@ export default function IniciativasPage() {
 
       {/* Loading */}
       {loading && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4rem', gap: '0.75rem', color: '#9CA3AF' }}>
-          <Loader2 size={18} className="animate-spin" />
-          <span style={{ fontSize: '0.9375rem' }}>Cargando iniciativas...</span>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '3.5rem 1rem' }}>
+          <OrganicLoader variant="dark" size="sm" label="Cargando iniciativas…" />
         </div>
       )}
 

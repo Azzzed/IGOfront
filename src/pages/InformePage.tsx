@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { gsap } from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { FileText, Loader2, RefreshCw, Sparkles, Printer } from 'lucide-react';
+import { OrganicLoader } from '@/components/common/OrganicLoader';
 import { useEmpresaStore } from '@/store/empresaStore';
 import { useInforme } from '@/hooks/useInforme';
 import { InformeIGO } from '@/components/informe/InformeIGO';
@@ -158,14 +159,8 @@ export default function InformePage() {
 
         {/* Loading initial fetch */}
         {loading && (
-          <div
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              minHeight: 220, gap: 10, color: '#9CA3AF',
-            }}
-          >
-            <Loader2 size={18} strokeWidth={2} className="animate-spin" />
-            <span style={{ fontSize: '0.875rem' }}>Cargando informe...</span>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem 1rem' }}>
+            <OrganicLoader variant="dark" size="sm" label="Cargando informe…" />
           </div>
         )}
 
@@ -175,43 +170,13 @@ export default function InformePage() {
             style={{
               display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center',
-              minHeight: 260, gap: 16,
+              minHeight: 280, gap: 0,
             }}
           >
-            <div style={{ position: 'relative' }}>
-              <div
-                style={{
-                  width: 60, height: 60, borderRadius: 16,
-                  background: '#0A0A0A',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-              >
-                <Sparkles size={26} color="white" strokeWidth={2} />
-              </div>
-              <div
-                style={{
-                  position: 'absolute', bottom: -5, right: -5,
-                  width: 20, height: 20, borderRadius: '50%',
-                  background: '#FFFFFF', border: '1.5px solid rgba(0,0,0,0.10)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-              >
-                <Loader2 size={11} strokeWidth={3} className="animate-spin" style={{ color: '#6B7280' }} />
-              </div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <p
-                style={{
-                  fontSize: '0.9375rem', fontWeight: 700,
-                  color: '#0A0A0A', margin: '0 0 5px', letterSpacing: '-0.01em',
-                }}
-              >
-                Generando informe con IA
-              </p>
-              <p style={{ fontSize: '0.8125rem', color: '#9CA3AF', margin: 0 }}>
-                Esto puede tardar hasta 30 segundos…
-              </p>
-            </div>
+            <OrganicLoader variant="dark" size="md" label="Generando informe con IA…" />
+            <p style={{ fontSize: '0.8125rem', color: '#9CA3AF', margin: '0.5rem 0 0', textAlign: 'center' }}>
+              Esto puede tardar hasta 30 segundos…
+            </p>
           </div>
         )}
 

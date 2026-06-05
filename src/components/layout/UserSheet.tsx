@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { gsap } from 'gsap';
 import { toast } from 'sonner';
 import { X, Eye, EyeOff, Loader2, Building2, LogOut, UserCheck, Bell, BellOff, AlertTriangle } from 'lucide-react';
+import { OrganicLoader } from '@/components/common/OrganicLoader';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/store/authStore';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
@@ -507,33 +508,12 @@ export function UserSheet({ open, onClose }: Props) {
   /* ── Logout loading screen ── */
   if (loggingOut) {
     return (
-      <div
-        style={{
-          position: 'fixed', inset: 0, zIndex: 500,
-          background: '#FFFFFF',
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          gap: '1rem',
-        }}
-      >
-        <Loader2
-          size={36}
-          strokeWidth={2}
-          color="#0A0A0A"
-          className="animate-spin"
-        />
-        <p
-          style={{
-            fontSize: '0.9375rem',
-            fontWeight: 600,
-            color: '#0A0A0A',
-            letterSpacing: '-0.01em',
-            margin: 0,
-          }}
-        >
-          Cerrando sesión…
-        </p>
-      </div>
+      <OrganicLoader
+        variant="dark"
+        size="lg"
+        label="Cerrando sesión…"
+        fullScreen
+      />
     );
   }
 

@@ -8,7 +8,8 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { ScatterShapeProps } from 'recharts';
-import { RefreshCw, Loader2, TrendingUp, Info, LayoutGrid, Bell, X as XIcon } from 'lucide-react';
+import { RefreshCw, TrendingUp, Info, LayoutGrid, Bell, X as XIcon } from 'lucide-react';
+import { OrganicLoader } from '@/components/common/OrganicLoader';
 import { cn } from '@/lib/utils';
 import { useEmpresaStore } from '@/store/empresaStore';
 import { useMatrizConInforme } from '@/hooks/useMatrizConInforme';
@@ -289,15 +290,20 @@ export default function MatrizPage() {
           <div style={{
             display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
-            minHeight: 300, gap: 14,
+            minHeight: 320, gap: 0,
           }}>
-            <Loader2 size={28} strokeWidth={1.5} color="#0A0A0A" className="animate-spin" />
-            <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#0A0A0A', margin: 0, letterSpacing: '-0.01em' }}>
-              {loadingMessage}
-            </p>
+            <OrganicLoader
+              variant="dark"
+              size="md"
+              label={loadingMessage ?? undefined}
+            />
             {generating && (
-              <p style={{ fontSize: '0.8125rem', color: '#9CA3AF', margin: 0, maxWidth: 260, textAlign: 'center', lineHeight: 1.5 }}>
-                Estamos analizando tus iniciativas con IA.<br />Esto puede tomar hasta 30 segundos.
+              <p style={{
+                fontSize: '0.8125rem', color: '#9CA3AF',
+                margin: '0.75rem 0 0', maxWidth: 260,
+                textAlign: 'center', lineHeight: 1.5,
+              }}>
+                Analizando iniciativas con IA…<br />Puede tomar hasta 30 s.
               </p>
             )}
           </div>

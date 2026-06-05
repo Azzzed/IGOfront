@@ -2,7 +2,8 @@ import { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { gsap } from 'gsap';
 import { useGSAP } from '@gsap/react';
-import { Plus, Building2, MapPin, ArrowRight, Loader2 } from 'lucide-react';
+import { Plus, Building2, MapPin, ArrowRight } from 'lucide-react';
+import { OrganicLoader } from '@/components/common/OrganicLoader';
 import { useEmpresas } from '@/hooks/useEmpresas';
 import { SECTOR_OPTIONS, TAMANO_OPTIONS, CUADRANTES } from '@/lib/utils';
 import type { Empresa } from '@/types/empresa.types';
@@ -184,9 +185,8 @@ export default function EmpresasPage() {
 
       {/* Loading */}
       {loading && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4rem', gap: '0.75rem', color: '#9CA3AF' }}>
-          <Loader2 size={18} className="animate-spin" />
-          <span style={{ fontSize: '0.9375rem' }}>Cargando empresas...</span>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '3.5rem 1rem' }}>
+          <OrganicLoader variant="dark" size="sm" label="Cargando empresas…" />
         </div>
       )}
 
