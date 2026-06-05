@@ -424,16 +424,28 @@ export function UserSheet({ open, onClose }: Props) {
   const [step, setStep]           = useState<'main' | 'registro'>('main');
   const [loggingOut, setLoggingOut] = useState(false);
 
-  const user          = useAuthStore((s) => s.user);
-  const sessionStatus = useAuthStore((s) => s.sessionStatus);
-  const { logout }    = useAuth();
-  const navigate      = useNavigate();
+  const user            = useAuthStore((s) => s.user);
+  const sessionStatus   = useAuthStore((s) => s.sessionStatus);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const { logout }      = useAuth();
+  const navigate        = useNavigate();
   /*
-   * Un usuario es "invitado" (modo exploración) solo cuando ELIGIÓ ese camino.
-   * Si la sesión expiró (sessionStatus === 'expired'), el ProtectedRoute ya
-   * está redirigiendo a /login; no debemos mostrar el panel invitado.
+   * Lógica de "Modo exploración":
+   *
+   *   isAuthenticated = true  → miramos el tipo de cuenta:
+   *     user.tipo === 'invitado'   → modo exploración ✓
+   *     user.tipo === 'registrado' → cuenta real ✗
+   *     user === null (AuthGate aún resolviendo) → cuenta real (no flash) ✗
+   *
+   *   isAuthenticated = false → miramos si hubo sesión previa:
+   *     sessionStatus === 'idle'    → nunca inició sesión → modo exploración ✓
+   *     sessionStatus === 'expired' → sesión expirada → NO mostrar (redirige a /login) ✗
+   *
+   * Esta condición evita el bug donde user:null + token válido mostraba "Modo exploración".
    */
-  const isInvitado = sessionStatus !== 'expired' && (!user || user.tipo === 'invitado');
+  const isInvitado = isAuthenticated
+    ? user?.tipo === 'invitado'
+    : sessionStatus === 'idle';
 
   /* Body scroll lock */
   useEffect(() => {

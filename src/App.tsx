@@ -4,6 +4,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import MainLayout from '@/components/layout/MainLayout';
+import { AuthGate } from '@/components/layout/AuthGate';
 
 import LoginPage       from '@/pages/LoginPage';
 import RegistroPage    from '@/pages/RegistroPage';
@@ -49,7 +50,12 @@ export default function App() {
         }}
       />
 
-      <Routes>
+      {/*
+        AuthGate bloquea el pintado de rutas hasta que /auth/me resuelve.
+        Esto garantiza que user nunca sea null con un token válido activo.
+      */}
+      <AuthGate>
+        <Routes>
         {/* Públicas */}
         <Route path="/login"    element={<LoginPage />} />
         <Route path="/registro" element={<RegistroPage />} />
@@ -71,9 +77,10 @@ export default function App() {
           </Route>
         </Route>
 
-        <Route path="/"  element={<Navigate to="/empresas" replace />} />
-        <Route path="*"  element={<Navigate to="/login"    replace />} />
-      </Routes>
+          <Route path="/"  element={<Navigate to="/empresas" replace />} />
+          <Route path="*"  element={<Navigate to="/login"    replace />} />
+        </Routes>
+      </AuthGate>
     </BrowserRouter>
   );
 }
