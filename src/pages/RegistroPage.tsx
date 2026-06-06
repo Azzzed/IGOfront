@@ -8,7 +8,7 @@ import { useGSAP } from '@gsap/react';
 import { Eye, EyeOff, TrendingUp, ArrowRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
-import { cn } from '@/lib/utils';
+import { cn, extractApiError } from '@/lib/utils';
 import { BgOrbs } from '@/components/common/BgOrbs';
 
 const schema = z
@@ -169,10 +169,7 @@ export default function RegistroPage() {
         navigate('/onboarding');
       }
     } catch (err: unknown) {
-      toast.error(
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-        ?? 'Error al crear la cuenta'
-      );
+      toast.error(extractApiError(err, 'Error al crear la cuenta'));
     } finally {
       setIsLoading(false);
     }

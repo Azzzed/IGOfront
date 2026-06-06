@@ -10,6 +10,7 @@ import { OrganicLoader } from '@/components/common/OrganicLoader';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/store/authStore';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { extractApiError } from '@/lib/utils';
 
 /* ─── Validation schema ─── */
 const schema = z
@@ -272,8 +273,9 @@ function RegistroForm({ onBack }: { onBack: () => void }) {
       }
       onBack(); // close form — sheet will close via parent
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg ?? 'Error al crear la cuenta. Intenta de nuevo.');
+      // El toast de éxito está DENTRO del try tras el await → solo se muestra
+      // en 2xx. Aquí mostramos el error real (422 validación, 409 ya registrada…).
+      toast.error(extractApiError(err, 'Error al crear la cuenta. Intenta de nuevo.'));
     } finally {
       setSubmitting(false);
     }

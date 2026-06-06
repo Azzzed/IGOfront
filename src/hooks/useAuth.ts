@@ -89,11 +89,21 @@ export function useAuth() {
    */
   const upgrade = useCallback(
     async (data: RegistroRequest): Promise<void> => {
-      const response = await api.post<AuthResponse>('/auth/upgrade', data);
+      /* El contrato de /auth/upgrade pide SOLO estos 4 campos.
+         NO enviamos password_confirmation: el backend no lo valida
+         (la coincidencia de contraseñas se valida en la UI con Zod). */
+      const body = {
+        nombre:         data.nombre,
+        email:          data.email,
+        password:       data.password,
+        consentimiento: data.consentimiento,
+      };
+
+      const response = await api.post<AuthResponse>('/auth/upgrade', body);
       const payload = response.data?.data as Partial<{ token: string; user: User }> | undefined;
 
       if (payload?.token && payload?.user) {
-        setAuth(payload.user, payload.token);
+        setAuth(payload.user, payload.token);   // rotación de token (mismo user_id)
       } else if (payload?.user) {
         setUser(payload.user);
       } else {

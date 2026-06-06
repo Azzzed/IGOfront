@@ -116,3 +116,20 @@ export function formatDate(dateStr: string): string {
     day: 'numeric',
   }).format(new Date(dateStr));
 }
+
+/**
+ * Extrae un mensaje legible de un error de Axios.
+ * Prioriza el primer error de validación 422 de Laravel (`errors`),
+ * luego el `message` de la respuesta, y por último un fallback.
+ */
+export function extractApiError(err: unknown, fallback = 'Ocurrió un error. Intenta de nuevo.'): string {
+  const e = err as {
+    response?: { data?: { message?: string; errors?: Record<string, string[]> } };
+  };
+  const errors = e.response?.data?.errors;
+  if (errors) {
+    const firstField = Object.values(errors)[0];
+    if (Array.isArray(firstField) && firstField[0]) return firstField[0];
+  }
+  return e.response?.data?.message ?? fallback;
+}
