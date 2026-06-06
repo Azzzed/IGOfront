@@ -119,7 +119,7 @@ export default function RegistroPage() {
   const [showConf, setShowConf]   = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, setError, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     mode: 'onBlur',
   });
@@ -169,6 +169,26 @@ export default function RegistroPage() {
         navigate('/onboarding');
       }
     } catch (err: unknown) {
+      const e = err as { response?: { status?: number; data?: { errors?: Record<string, string[]> } } };
+      const status = e.response?.status;
+
+      if (status === 401) {
+        return; // interceptor global ya redirige a /login
+      }
+      if (status === 409) {
+        toast.error('Esta cuenta ya está registrada. Inicia sesión.');
+        navigate('/login');
+        return;
+      }
+      const fieldErrors = status === 422 ? e.response?.data?.errors : undefined;
+      if (fieldErrors) {
+        let handled = false;
+        if (fieldErrors.email)          { setError('email',    { message: fieldErrors.email[0] });    handled = true; }
+        if (fieldErrors.password)       { setError('password', { message: fieldErrors.password[0] }); handled = true; }
+        if (fieldErrors.nombre)         { setError('nombre',   { message: fieldErrors.nombre[0] });   handled = true; }
+        if (fieldErrors.consentimiento) { toast.error(fieldErrors.consentimiento[0]);                 handled = true; }
+        if (handled) return;
+      }
       toast.error(extractApiError(err, 'Error al crear la cuenta'));
     } finally {
       setIsLoading(false);

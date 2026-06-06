@@ -227,6 +227,7 @@ function PushSection() {
 function RegistroForm({ onBack }: { onBack: () => void }) {
   const { upgrade, registro, isAuthenticated } = useAuth();
   const user                            = useAuthStore((s) => s.user);
+  const navigate                        = useNavigate();
   const [showPwd, setShowPwd]           = useState(false);
   const [showConfirm, setShowConfirm]   = useState(false);
   const [submitting, setSubmitting]     = useState(false);
@@ -234,6 +235,7 @@ function RegistroForm({ onBack }: { onBack: () => void }) {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
@@ -273,8 +275,29 @@ function RegistroForm({ onBack }: { onBack: () => void }) {
       }
       onBack(); // close form — sheet will close via parent
     } catch (err: unknown) {
-      // El toast de éxito está DENTRO del try tras el await → solo se muestra
-      // en 2xx. Aquí mostramos el error real (422 validación, 409 ya registrada…).
+      /* El toast de éxito está DENTRO del try tras el await → solo se muestra
+         en 2xx. Aquí mapeamos el error real según el código HTTP del backend. */
+      const e = err as { response?: { status?: number; data?: { errors?: Record<string, string[]> } } };
+      const status = e.response?.status;
+
+      if (status === 401) {
+        // El interceptor global ya limpió la sesión y redirige a /login.
+        return;
+      }
+      if (status === 409) {
+        toast.error('Esta cuenta ya está registrada. Inicia sesión.');
+        navigate('/login');
+        return;
+      }
+      const fieldErrors = status === 422 ? e.response?.data?.errors : undefined;
+      if (fieldErrors) {
+        let handled = false;
+        if (fieldErrors.email)          { setError('email',    { message: fieldErrors.email[0] });    handled = true; }
+        if (fieldErrors.password)       { setError('password', { message: fieldErrors.password[0] }); handled = true; }
+        if (fieldErrors.nombre)         { setError('nombre',   { message: fieldErrors.nombre[0] });   handled = true; }
+        if (fieldErrors.consentimiento) { toast.error(fieldErrors.consentimiento[0]);                 handled = true; }
+        if (handled) return;
+      }
       toast.error(extractApiError(err, 'Error al crear la cuenta. Intenta de nuevo.'));
     } finally {
       setSubmitting(false);
