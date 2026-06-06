@@ -75,6 +75,34 @@ export function useAuth() {
     [setAuth],
   );
 
+  /**
+   * upgrade — convierte la sesión de exploración (invitado) en cuenta registrada
+   * IN-PLACE, sin crear un usuario nuevo ni mover datos.
+   *
+   * El backend identifica al invitado por el Bearer token (que el interceptor de
+   * axios ya adjunta automáticamente), actualiza la MISMA fila y conserva todas
+   * sus empresas. Esto reemplaza el flujo frágil que llamaba a /auth/registro
+   * (creaba cuenta nueva vacía y dejaba la empresa huérfana en el invitado).
+   *
+   * Respuesta tolerante: si devuelve token nuevo → rota sesión; si solo devuelve
+   * user → conserva el token actual; si no devuelve user → re-consulta /auth/me.
+   */
+  const upgrade = useCallback(
+    async (data: RegistroRequest): Promise<void> => {
+      const response = await api.post<AuthResponse>('/auth/upgrade', data);
+      const payload = response.data?.data as Partial<{ token: string; user: User }> | undefined;
+
+      if (payload?.token && payload?.user) {
+        setAuth(payload.user, payload.token);
+      } else if (payload?.user) {
+        setUser(payload.user);
+      } else {
+        await fetchMe();
+      }
+    },
+    [setAuth, setUser, fetchMe],
+  );
+
   return {
     login,
     registro,
@@ -82,6 +110,7 @@ export function useAuth() {
     fetchMe,
     crearInvitado,
     migrarInvitado,
+    upgrade,
     isAuthenticated,
     user,
   };

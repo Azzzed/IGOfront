@@ -224,7 +224,7 @@ function PushSection() {
 
 /* ─── Registro form (inside the sheet) ─── */
 function RegistroForm({ onBack }: { onBack: () => void }) {
-  const { migrarInvitado, registro }    = useAuth();
+  const { upgrade, registro, isAuthenticated } = useAuth();
   const user                            = useAuthStore((s) => s.user);
   const [showPwd, setShowPwd]           = useState(false);
   const [showConfirm, setShowConfirm]   = useState(false);
@@ -239,15 +239,27 @@ function RegistroForm({ onBack }: { onBack: () => void }) {
   const onSubmit = async (data: FormData) => {
     setSubmitting(true);
     try {
-      if (user?.tipo === 'invitado' && user.token_invitado) {
-        await migrarInvitado({
-          token_invitado:        user.token_invitado,
+      /*
+       * Sesión de exploración (invitado autenticado) → UPGRADE IN-PLACE.
+       * Usamos /auth/upgrade (Bearer token del invitado, adjuntado por el
+       * interceptor) para convertir la MISMA cuenta en registrada, conservando
+       * la empresa. NO usamos /auth/registro aquí porque crearía una cuenta
+       * nueva vacía y dejaría la empresa huérfana en el invitado.
+       *
+       * La condición es `tipo !== 'registrado'` (no `=== 'invitado'`) para no
+       * depender de `token_invitado`, que /auth/me no devuelve tras una recarga.
+       */
+      const esUpgrade = isAuthenticated && user?.tipo !== 'registrado';
+
+      if (esUpgrade) {
+        await upgrade({
           nombre:                data.nombre,
           email:                 data.email,
           password:              data.password,
           password_confirmation: data.password_confirmation,
           consentimiento:        data.consentimiento,
         });
+        toast.success('¡Cuenta vinculada! Tus datos se conservaron.');
       } else {
         await registro({
           nombre:                data.nombre,
@@ -256,8 +268,8 @@ function RegistroForm({ onBack }: { onBack: () => void }) {
           password_confirmation: data.password_confirmation,
           consentimiento:        data.consentimiento,
         });
+        toast.success('¡Cuenta creada! Bienvenido a IGO Manager');
       }
-      toast.success('¡Cuenta creada! Bienvenido a IGO Manager');
       onBack(); // close form — sheet will close via parent
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;

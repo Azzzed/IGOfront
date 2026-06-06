@@ -112,7 +112,7 @@ function Input({ id, type = 'text', placeholder, error, suffix, ...rest }: {
 /* ─── RegistroPage ─── */
 export default function RegistroPage() {
   const navigate      = useNavigate();
-  const { registro }  = useAuth();
+  const { registro, upgrade, isAuthenticated, user } = useAuth();
   const containerRef  = useRef<HTMLDivElement>(null);
 
   const [showPass, setShowPass]   = useState(false);
@@ -135,17 +135,39 @@ export default function RegistroPage() {
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
     try {
-      await registro({
-        nombre: data.nombre,
-        email: data.email,
-        password: data.password,
-        password_confirmation: data.password_confirmation,
-        consentimiento: data.consentimiento,
-      });
-      toast.success('¡Cuenta creada! Cuéntanos sobre tu empresa');
-      // Cuenta nueva → nunca tiene empresa todavía → siempre onboarding
-      localStorage.removeItem('igo_onboarding_done');
-      navigate('/onboarding');
+      /*
+       * Si hay una sesión de exploración activa (invitado autenticado), hacemos
+       * UPGRADE IN-PLACE en vez de crear una cuenta nueva: así la empresa del
+       * invitado se conserva y no queda huérfana. Solo registramos de cero
+       * cuando NO hay sesión previa o ya es una cuenta registrada.
+       */
+      const esUpgrade = isAuthenticated && user?.tipo !== 'registrado';
+
+      if (esUpgrade) {
+        await upgrade({
+          nombre: data.nombre,
+          email: data.email,
+          password: data.password,
+          password_confirmation: data.password_confirmation,
+          consentimiento: data.consentimiento,
+        });
+        toast.success('¡Cuenta vinculada! Tus datos se conservaron.');
+        // La empresa del invitado se conserva → ir directo a empresas
+        localStorage.setItem('igo_onboarding_done', 'true');
+        navigate('/empresas');
+      } else {
+        await registro({
+          nombre: data.nombre,
+          email: data.email,
+          password: data.password,
+          password_confirmation: data.password_confirmation,
+          consentimiento: data.consentimiento,
+        });
+        toast.success('¡Cuenta creada! Cuéntanos sobre tu empresa');
+        // Cuenta nueva → nunca tiene empresa todavía → siempre onboarding
+        localStorage.removeItem('igo_onboarding_done');
+        navigate('/onboarding');
+      }
     } catch (err: unknown) {
       toast.error(
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message
