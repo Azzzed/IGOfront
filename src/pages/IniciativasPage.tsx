@@ -18,10 +18,16 @@ import type { Iniciativa, ValorIGO, Categoria } from '@/types/iniciativa.types';
 function categoriaLabel(val: string) {
   return CATEGORIA_OPTIONS.find((o) => o.value === val)?.label ?? val;
 }
-function calcCuadrante(imp: ValorIGO, gob: ValorIGO): 1 | 2 | 3 | 4 {
-  if (imp >= 3 && gob >= 3) return 1;
-  if (imp >= 3 && gob < 3)  return 2;
-  if (imp < 3  && gob >= 3) return 3;
+function calcCuadrante(
+  imp: ValorIGO,
+  gob: ValorIGO,
+  asintota: { importancia: number; gobernabilidad: number } = { importancia: 3, gobernabilidad: 3 },
+): 1 | 2 | 3 | 4 {
+  const umbI = asintota.importancia;
+  const umbG = asintota.gobernabilidad;
+  if (imp >= umbI && gob >= umbG) return 1;
+  if (imp >= umbI && gob < umbG)  return 2;
+  if (imp < umbI  && gob >= umbG) return 3;
   return 4;
 }
 const METRIC_COLORS: Record<number, string> = { 1:'#DC2626',2:'#EA580C',3:'#CA8A04',4:'#65A30D',5:'#16A34A' };
@@ -270,12 +276,13 @@ interface DrawerProps {
   ini?:       Iniciativa | null;
   isFirst:    boolean;
   empresaId:  number | null;
+  asintota?:  { importancia: number; gobernabilidad: number };
   onClose:    () => void;
   onSave:     (data: { titulo: string; categoria: Categoria; importancia: ValorIGO; gobernabilidad: ValorIGO }) => Promise<void>;
   onDelete?:  () => Promise<void>;
 }
 
-function Drawer({ open, ini, isFirst, empresaId, onClose, onSave, onDelete }: DrawerProps) {
+function Drawer({ open, ini, isFirst, empresaId, asintota, onClose, onSave, onDelete }: DrawerProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const panelRef   = useRef<HTMLDivElement>(null);
 
@@ -342,7 +349,7 @@ function Drawer({ open, ini, isFirst, empresaId, onClose, onSave, onDelete }: Dr
   }, [open]);
 
   /* Cuadrante preview — consistent with card */
-  const previewCuadrante = (ini && !slidersTouched) ? ini.cuadrante : calcCuadrante(importancia, gobernabilidad);
+  const previewCuadrante = (ini && !slidersTouched) ? ini.cuadrante : calcCuadrante(importancia, gobernabilidad, asintota);
   const previewQ = CUADRANTES[previewCuadrante];
 
   const handleImpChange = (v: ValorIGO) => { setImportancia(v);    setSlidersTouched(true); };
@@ -625,7 +632,7 @@ export default function IniciativasPage() {
   const { empresaActiva } = useEmpresaStore();
   const pageRef        = useRef<HTMLDivElement>(null);
 
-  const { iniciativas, loading, error, crearIniciativa, actualizarIniciativa, eliminarIniciativa } = useIniciativas(empresaActiva?.id ?? null);
+  const { iniciativas, matriz, loading, error, crearIniciativa, actualizarIniciativa, eliminarIniciativa } = useIniciativas(empresaActiva?.id ?? null);
 
   const [drawerOpen,     setDrawerOpen]     = useState(false);
   const [editIniciativa, setEditIniciativa] = useState<Iniciativa | null>(null);
@@ -843,6 +850,7 @@ export default function IniciativasPage() {
         ini={editIniciativa}
         isFirst={iniciativas.length === 0}
         empresaId={empresaActiva?.id ?? null}
+        asintota={matriz?.asintotas}
         onClose={() => setDrawerOpen(false)}
         onSave={handleSave}
         onDelete={editIniciativa ? handleDelete : undefined}

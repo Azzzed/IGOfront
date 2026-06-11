@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { User } from '@/types/auth.types';
+import { useEmpresaStore } from '@/store/empresaStore';
 
 /**
  * sessionStatus distingue tres situaciones distintas:
@@ -38,6 +39,13 @@ interface AuthState {
   resetSessionStatus: () => void;
 }
 
+/** Limpia empresa en memoria + localStorage persistido */
+function clearEmpresaStore() {
+  const s = useEmpresaStore.getState();
+  s.setEmpresaActiva(null);
+  s.setEmpresas([]);
+}
+
 export const useAuthStore = create<AuthState>((set) => ({
   user:            null,
   token:           localStorage.getItem('igo_token'),
@@ -54,11 +62,13 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   clearAuth: () => {
     localStorage.removeItem('igo_token');
+    clearEmpresaStore();
     set({ user: null, token: null, isAuthenticated: false, sessionStatus: 'idle' });
   },
 
   expireSession: () => {
     localStorage.removeItem('igo_token');
+    clearEmpresaStore();
     set({ user: null, token: null, isAuthenticated: false, sessionStatus: 'expired' });
   },
 

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { Empresa } from '@/types/empresa.types';
 
 interface EmpresaState {
@@ -11,29 +12,37 @@ interface EmpresaState {
   removeEmpresa: (id: number) => void;
 }
 
-export const useEmpresaStore = create<EmpresaState>((set) => ({
-  empresas: [],
-  empresaActiva: null,
+export const useEmpresaStore = create<EmpresaState>()(
+  persist(
+    (set) => ({
+      empresas: [],
+      empresaActiva: null,
 
-  setEmpresas: (empresas) => set({ empresas }),
+      setEmpresas: (empresas) => set({ empresas }),
 
-  setEmpresaActiva: (empresa) => set({ empresaActiva: empresa }),
+      setEmpresaActiva: (empresa) => set({ empresaActiva: empresa }),
 
-  addEmpresa: (empresa) =>
-    set((state) => ({ empresas: [...state.empresas, empresa] })),
+      addEmpresa: (empresa) =>
+        set((state) => ({ empresas: [...state.empresas, empresa] })),
 
-  updateEmpresa: (id, data) =>
-    set((state) => ({
-      empresas: state.empresas.map((e) => (e.id === id ? { ...e, ...data } : e)),
-      empresaActiva:
-        state.empresaActiva?.id === id
-          ? { ...state.empresaActiva, ...data }
-          : state.empresaActiva,
-    })),
+      updateEmpresa: (id, data) =>
+        set((state) => ({
+          empresas: state.empresas.map((e) => (e.id === id ? { ...e, ...data } : e)),
+          empresaActiva:
+            state.empresaActiva?.id === id
+              ? { ...state.empresaActiva, ...data }
+              : state.empresaActiva,
+        })),
 
-  removeEmpresa: (id) =>
-    set((state) => ({
-      empresas: state.empresas.filter((e) => e.id !== id),
-      empresaActiva: state.empresaActiva?.id === id ? null : state.empresaActiva,
-    })),
-}));
+      removeEmpresa: (id) =>
+        set((state) => ({
+          empresas: state.empresas.filter((e) => e.id !== id),
+          empresaActiva: state.empresaActiva?.id === id ? null : state.empresaActiva,
+        })),
+    }),
+    {
+      name: 'igo_empresa_activa',
+      partialize: (state) => ({ empresaActiva: state.empresaActiva }),
+    },
+  ),
+);

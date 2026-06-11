@@ -61,11 +61,14 @@ self.addEventListener('push', (event) => {
   const data: PushPayload = (event.data?.json() as PushPayload | undefined) ?? {};
 
   const title   = data.title ?? 'IGO Manager';
+  /* Todas las notificaciones llevan al usuario a la Matriz IGO por defecto.
+     El backend puede enviar una url específica y esa tendrá prioridad. */
+  const targetUrl = (data.url && data.url !== '/') ? data.url : '/matriz';
   const options: NotificationOptions = {
     body:    data.body    ?? '',
     icon:    data.icon    ?? '/icons/icon-192.png',
     badge:   '/icons/icon-192.png',
-    data:    { url: data.url ?? '/' },
+    data:    { url: targetUrl },
     vibrate: [100, 50, 100],
   };
 

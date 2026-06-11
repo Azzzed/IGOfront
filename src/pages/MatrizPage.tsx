@@ -161,6 +161,10 @@ export default function MatrizPage() {
   const containerRef   = useRef<HTMLDivElement>(null);
   const empresaActiva  = useEmpresaStore((s) => s.empresaActiva);
 
+  useEffect(() => {
+    if (!empresaActiva) navigate('/empresas', { replace: true });
+  }, [empresaActiva, navigate]);
+
   const {
     matrizData,
     informe,

@@ -1,4 +1,5 @@
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { gsap } from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { FileText, Loader2, RefreshCw, Sparkles, Printer } from 'lucide-react';
@@ -8,8 +9,14 @@ import { useInforme } from '@/hooks/useInforme';
 import { InformeIGO } from '@/components/informe/InformeIGO';
 
 export default function InformePage() {
+  const navigate      = useNavigate();
   const containerRef  = useRef<HTMLDivElement>(null);
   const empresaActiva = useEmpresaStore((s) => s.empresaActiva);
+
+  useEffect(() => {
+    if (!empresaActiva) navigate('/empresas', { replace: true });
+  }, [empresaActiva, navigate]);
+
   const { informe, loading, generating, error, fetchInforme, generarInforme } =
     useInforme(empresaActiva?.id ?? null);
 

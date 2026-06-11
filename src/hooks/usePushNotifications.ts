@@ -7,12 +7,17 @@
  *  - desactivar(): DELETE /push/desuscribir + unsubscribe local
  *  - probar():     POST /push/probar (envía una notificación de prueba al dispositivo)
  *
- * Al montar verifica si ya existe suscripción activa para reflejar el estado real.
+ * Preferencia por usuario:
+ *  - La preferencia se guarda en localStorage con key `igo_push_pref_<userId>`.
+ *  - Al montar, si existe preferencia + permiso granted + suscripción SW activa → 'activado'.
+ *  - Al desactivar, se elimina la preferencia.
+ *  - Esto evita que sesiones de otros usuarios hereden el estado de push.
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import api from '@/lib/axios';
+import { useAuthStore } from '@/store/authStore';
 import {
   isPushSupported,
   getNotificationPermission,
@@ -22,11 +27,11 @@ import {
 /* ─── Types ─── */
 
 export type PushEstado =
-  | 'no-soportado'   // browser sin APIs de push
-  | 'sin-permiso'    // permiso denegado por el usuario
-  | 'activado'       // suscripción activa en backend
-  | 'desactivado'    // soportado y con permiso, pero sin suscripción
-  | 'cargando';      // operación en curso o verificación inicial
+  | 'no-soportado'
+  | 'sin-permiso'
+  | 'activado'
+  | 'desactivado'
+  | 'cargando';
 
 export interface UsePushNotificationsResult {
   estado:     PushEstado;
@@ -34,8 +39,6 @@ export interface UsePushNotificationsResult {
   desactivar: () => Promise<void>;
   probar:     () => Promise<void>;
 }
-
-/* ─── Internal helper ─── */
 
 interface ApiError {
   response?: { data?: { message?: string }; status?: number };
@@ -48,36 +51,39 @@ function extractMsg(err: unknown): string | undefined {
 /* ─── Hook ─── */
 
 export function usePushNotifications(): UsePushNotificationsResult {
+  const userId  = useAuthStore((s) => s.user?.id ?? null);
+  const prefKey = userId !== null ? `igo_push_pref_${userId}` : null;
+
   const [estado, setEstado] = useState<PushEstado>(() => {
     if (!isPushSupported())                          return 'no-soportado';
     if (getNotificationPermission() === 'denied')    return 'sin-permiso';
-    return 'desactivado'; // OFF por defecto — el usuario activa explícitamente
+    return 'desactivado';
   });
 
-  /* Verificación al montar.
-   *
-   * IMPORTANTE: NO auto-activamos el toggle desde pushManager.getSubscription().
-   * Una suscripción push vive a nivel de DISPOSITIVO + scope del SW, no de la
-   * cuenta. Si un usuario activó notificaciones y luego otro usuario (o una
-   * sesión de exploración) abre la app en el mismo navegador, getSubscription()
-   * devolvía la suscripción heredada y encendía el toggle "por defecto" en todas
-   * las sesiones — provocando notificaciones cruzadas. Por eso arranca en
-   * 'desactivado' y solo pasa a 'activado' cuando el usuario pulsa activar().
-   */
+  /* Restaurar estado si el usuario ya activó notificaciones antes */
   useEffect(() => {
     if (!isPushSupported()) return;
+
     if (getNotificationPermission() === 'denied') {
       setEstado('sin-permiso');
+      return;
     }
-  }, []);
 
-  /* ── activar ────────────────────────────────────────────────────── */
+    if (!prefKey || !localStorage.getItem(prefKey)) return;
+    if (getNotificationPermission() !== 'granted') return;
+
+    void navigator.serviceWorker.ready
+      .then((reg) => reg.pushManager.getSubscription())
+      .then((sub) => { if (sub) setEstado('activado'); })
+      .catch(() => { /* suscripción inaccesible — dejamos en desactivado */ });
+  }, [prefKey]);
+
+  /* ── activar ── */
   const activar = useCallback(async () => {
     if (!isPushSupported()) return;
     setEstado('cargando');
 
     try {
-      /* 1. Pedir permiso */
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         setEstado('sin-permiso');
@@ -85,20 +91,17 @@ export function usePushNotifications(): UsePushNotificationsResult {
         return;
       }
 
-      /* 2. Obtener VAPID public key del backend */
       const keyRes = await api.get<{ success: boolean; data: { public_key: string } }>(
         '/push/vapid-public-key',
       );
       const vapidKey = keyRes.data.data.public_key;
 
-      /* 3. Suscribir en el pushManager del SW */
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly:      true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey),
       });
 
-      /* 4. Extraer endpoint y keys */
       const json   = sub.toJSON();
       const p256dh = (json.keys ?? {})['p256dh'] ?? '';
       const auth   = (json.keys ?? {})['auth']   ?? '';
@@ -107,23 +110,24 @@ export function usePushNotifications(): UsePushNotificationsResult {
         throw new Error('Suscripción inválida: faltan datos de cifrado');
       }
 
-      /* 5. Registrar en el backend */
       await api.post('/push/suscribir', {
         endpoint:        json.endpoint,
         keys:            { p256dh, auth },
         contentEncoding: 'aes128gcm',
       });
 
+      /* Guardar preferencia para este usuario */
+      if (prefKey) localStorage.setItem(prefKey, '1');
+
       setEstado('activado');
       toast.success('Notificaciones activadas ✓');
     } catch (err: unknown) {
-      /* Restaurar estado correcto según permiso actual */
       setEstado(getNotificationPermission() === 'denied' ? 'sin-permiso' : 'desactivado');
       toast.error(extractMsg(err) ?? 'No se pudieron activar las notificaciones');
     }
-  }, []);
+  }, [prefKey]);
 
-  /* ── desactivar ─────────────────────────────────────────────────── */
+  /* ── desactivar ── */
   const desactivar = useCallback(async () => {
     if (!isPushSupported()) return;
     setEstado('cargando');
@@ -133,30 +137,26 @@ export function usePushNotifications(): UsePushNotificationsResult {
       const sub = await reg.pushManager.getSubscription();
 
       if (sub) {
-        /* 1. Eliminar en el backend */
         await api.delete('/push/desuscribir', {
           data: { endpoint: sub.endpoint },
         });
-        /* 2. Desuscribir localmente */
         await sub.unsubscribe();
       }
+
+      /* Limpiar preferencia guardada */
+      if (prefKey) localStorage.removeItem(prefKey);
 
       setEstado('desactivado');
       toast.success('Notificaciones desactivadas');
     } catch (err: unknown) {
-      setEstado('activado'); // revertir optimista
+      setEstado('activado');
       toast.error(extractMsg(err) ?? 'Error al desactivar notificaciones');
     }
-  }, []);
+  }, [prefKey]);
 
-  /* ── probar ─────────────────────────────────────────────────────── */
+  /* ── probar ── */
   const probar = useCallback(async () => {
-    interface ProbarPreview {
-      title: string;
-      body:  string;
-      url:   string;
-      icon?: string;
-    }
+    interface ProbarPreview { title: string; body: string; url: string; icon?: string }
     interface ProbarResponse {
       success: boolean;
       data?:   { enviadas: number; preview?: ProbarPreview | null };
@@ -168,10 +168,7 @@ export function usePushNotifications(): UsePushNotificationsResult {
       const preview = res.data.data?.preview ?? null;
 
       if (preview) {
-        toast.success(`✓ Enviada: "${preview.title}"`, {
-          description: preview.body,
-          duration: 6000,
-        });
+        toast.success(`✓ Enviada: "${preview.title}"`, { description: preview.body, duration: 6000 });
       } else {
         toast.success('Notificación de prueba enviada ✓', {
           description: 'Revisa las notificaciones de tu sistema operativo',

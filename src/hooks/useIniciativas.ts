@@ -39,7 +39,10 @@ export function useIniciativas(empresaId: number | null) {
     }
   }, [empresaId]);
 
-  useEffect(() => { fetchIniciativas(); }, [fetchIniciativas]);
+  useEffect(() => {
+    fetchIniciativas();
+    void fetchMatriz();
+  }, [fetchIniciativas, fetchMatriz]);
 
   const crearIniciativa = useCallback(async (data: IniciativaRequest): Promise<Iniciativa> => {
     if (!empresaId) throw new Error('Sin empresa activa');
