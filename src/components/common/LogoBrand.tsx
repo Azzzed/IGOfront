@@ -43,7 +43,7 @@ export function LogoBrand({ size = 32, shape = 'circle' }: LogoBrandProps) {
   const cellSize = (inner - gap) / 2;
   const cellR    = `${Math.max(1, Math.round(cellSize * 0.28))}px`;
 
-  const cell = (opacity: number, ref?: React.RefObject<HTMLDivElement>) => (
+  const cell = (opacity: number, ref?: React.RefObject<HTMLDivElement | null>) => (
     <div
       ref={ref}
       style={{
